@@ -78,6 +78,7 @@ class GameView : SurfaceView, Runnable {
 
     private val baseWidth: Float = 1080F
     private val sideMarginBase: Int = 60
+    private val stoplightMargin: Float = 0.1f
 
     private val timerBoxBase: Int = 512
     private val timerBoxOffsetX: Int = 40
@@ -218,8 +219,9 @@ class GameView : SurfaceView, Runnable {
         initWindows(numRows, lightMap, lightMap2, ColorManager.getSpecificColor(colorIndices[0], 2), ColorManager.getSpecificColor(colorIndices[0], 3))
 
         // Setup stoplight
+        val stoplightWidth: Int = (mViewWidth - (mViewWidth * stoplightMargin) * 2.0f).toInt()
         val stoplightBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.stoplight)
-        val stoplightScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(stoplightBitmap, widthRatio, stoplightSize)
+        val stoplightScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(stoplightBitmap, stoplightWidth)
         stoplight = Stoplight(stoplightScaledBitmap, mViewWidth, mViewHeight)
 
         // Setup dialog box
@@ -462,7 +464,7 @@ class GameView : SurfaceView, Runnable {
                     }
                 }
 
-                if (transition.transitionActive || gameStatus == 2) {
+                if (transition.transitionActive || gameStatus == 2 || gameStatus == 5 || gameStatus == 7) {
                     transition.updateTransition()
                     transition.draw(mCanvas)
                 }

@@ -302,7 +302,7 @@ class TutorialScreen : SurfaceView, Runnable {
                     mCanvas.drawBitmap(cursorUpBitmap, cursorX, cursorY, null)
                 }
 
-                if (transition.transitionActive) {
+                if (transition.transitionActive || tutorialStatus == 1) {
                     transition.updateTransition()
                     transition.draw(mCanvas)
                 }

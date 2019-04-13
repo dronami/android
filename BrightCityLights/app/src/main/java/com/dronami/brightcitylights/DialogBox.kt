@@ -18,6 +18,10 @@ class DialogBox {
     private var isSelection: Boolean = false
     var dialogActive: Boolean = false
 
+    private val marginRatio: Float = 0.1f
+    private val buttonRatio: Float = 0.32f
+    private val radialRatio: Float = 0.15f
+
     private var radialSelection: Int = 0
     private var radialSelectionLast: Int = -1
     private var radialX: Float = 0f
@@ -57,7 +61,6 @@ class DialogBox {
     private lateinit var okButtonRect: Rect
     private lateinit var noButtonRect: Rect
 
-    private val dialogBoxSize: Float = 1.4f
     private var dialogFont: Typeface
     private var headerPaint: Paint = Paint()
     private var shadowPaint: Paint = Paint()
@@ -82,38 +85,41 @@ class DialogBox {
     private val lightShadowColor: Int = Color.argb(255,60,60,60)
 
     constructor(context: Context, widthRatio: Float, sWidth: Int, sHeight: Int) {
+        boxWidth = (sWidth - (sWidth * marginRatio * 2.0f)).toInt()
+        val buttonWidth: Int = (boxWidth * buttonRatio).toInt()
+        val radialSize: Int = (boxWidth * radialRatio).toInt()
+
         val dialogHeader: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.menutop)
-        val dialogHeaderScaled: Bitmap = BitmapScaler.scaleBitmap(dialogHeader, widthRatio, dialogBoxSize)
+        val dialogHeaderScaled: Bitmap = BitmapScaler.scaleBitmap(dialogHeader, boxWidth)
 
         val dialogMid: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.menumid)
-        val dialogMidScaled: Bitmap = BitmapScaler.scaleBitmap(dialogMid, widthRatio, dialogBoxSize)
+        val dialogMidScaled: Bitmap = BitmapScaler.scaleBitmap(dialogMid, boxWidth)
 
         val dialogBottom: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.menubottom)
-        val dialogBottomScaled: Bitmap = BitmapScaler.scaleBitmap(dialogBottom, widthRatio, dialogBoxSize)
+        val dialogBottomScaled: Bitmap = BitmapScaler.scaleBitmap(dialogBottom, boxWidth)
 
         val okUp: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.button_ok_up)
         val okDown: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.button_ok_down)
         val noUp: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.button_no_up)
         val noDown: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.button_no_down)
 
-        val okUpScaled: Bitmap = BitmapScaler.scaleBitmap(okUp, widthRatio, dialogBoxSize)
-        val okDownScaled: Bitmap = BitmapScaler.scaleBitmap(okDown, widthRatio, dialogBoxSize)
-        val noUpScaled: Bitmap = BitmapScaler.scaleBitmap(noUp, widthRatio, dialogBoxSize)
-        val noDownScaled: Bitmap = BitmapScaler.scaleBitmap(noDown, widthRatio, dialogBoxSize)
+        val okUpScaled: Bitmap = BitmapScaler.scaleBitmap(okUp, buttonWidth)
+        val okDownScaled: Bitmap = BitmapScaler.scaleBitmap(okDown, buttonWidth)
+        val noUpScaled: Bitmap = BitmapScaler.scaleBitmap(noUp, buttonWidth)
+        val noDownScaled: Bitmap = BitmapScaler.scaleBitmap(noDown, buttonWidth)
 
         boxBitmaps = mutableListOf(dialogHeaderScaled, dialogMidScaled, dialogBottomScaled)
         savedMidBitmap = boxBitmaps[1]
         buttonBitmaps = mutableListOf(okUpScaled, okDownScaled, noUpScaled, noDownScaled)
         screenWidth = sWidth
         screenHeight = sHeight
-        boxWidth = boxBitmaps[0].width
 
         val rBitmap: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.radialbox)
-        radialBitmap = BitmapScaler.scaleBitmap(rBitmap, widthRatio, dialogBoxSize)
+        radialBitmap = BitmapScaler.scaleBitmap(rBitmap, radialSize)
         radialMargin = radialMarginRatio * boxWidth
 
         val cBitmap: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.checkbox)
-        checkboxBitmap = BitmapScaler.scaleBitmap(cBitmap, widthRatio, dialogBoxSize)
+        checkboxBitmap = BitmapScaler.scaleBitmap(cBitmap, radialSize)
 
         headerX = (boxWidth * 0.05f)
         headerY = (boxWidth * 0.12f)
