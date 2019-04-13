@@ -80,11 +80,8 @@ class GameView : SurfaceView, Runnable {
     private val sideMarginBase: Int = 60
     private val stoplightMargin: Float = 0.1f
 
-    private val timerBoxBase: Int = 512
-    private val timerBoxOffsetX: Int = 40
-    private val timerBoxOffsetY: Int = -30
-    private val digitWidthBase: Int = 64
-    private val moveCounterOffset: Int = 580
+    private val timerBoxRatio: Float = 0.55f
+    private val awningRatio: Float = 0.4f
 
     private var windowsList: MutableList<CityWindow> = mutableListOf()
     private var windowMarginPercent: Float = 0.04f
@@ -100,6 +97,7 @@ class GameView : SurfaceView, Runnable {
 
     private lateinit var background: Background
 
+    private val signWidthRatio = 0.28f
     private var soundOn: Boolean = true
     private lateinit var soundSign: Sign
     private lateinit var stopSign: Sign
@@ -161,39 +159,42 @@ class GameView : SurfaceView, Runnable {
             else -> BitmapFactory.decodeResource(resources, R.drawable.awning_gray)
         }
 
-        val awningScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(awningBitmap, widthRatio)
+        val awningWidth: Int = (playAreaSize * awningRatio).toInt()
+        val awningScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(awningBitmap, awningWidth)
         background.initBackground(playArea, mViewWidth, mViewHeight, widthRatio)
         background.mainBuilding.initAwnings(awningScaledBitmap)
 
         // Setup and scale TimerBox
+        val timerWidth = (playAreaSize * timerBoxRatio).toInt()
         val tbBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.timerbox)
-        val tbScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(tbBitmap, widthRatio)
-        val tbX: Int = (playArea.left + timerBoxOffsetX * widthRatio).toInt()
-        val tbY: Int = (playArea.top - tbScaledBitmap.height + (timerBoxOffsetY * widthRatio)).toInt()
+        val tbScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(tbBitmap, timerWidth)
+        val tbX: Int = (playArea.left + (playArea.width()*0.05f) * widthRatio).toInt()
+        val tbY: Int = ((playArea.top - tbScaledBitmap.height) - (tbScaledBitmap.height * 0.1f)).toInt()
         timerBox = TimerBox(tbX, tbY, tbScaledBitmap)
 
         val dsBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.digitsheet)
-        val dsScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(dsBitmap, widthRatio)
+        val dsScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(dsBitmap, timerWidth)
         val digitWidth: Int = (dsScaledBitmap.width / 8.0f).toInt()
         timerBox.initDigits(digitWidth, digitWidth * 2, dsScaledBitmap)
 
         // Setup and scale CounterBox
         val mcBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.counterbox)
-        val mcScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(mcBitmap, widthRatio)
-        val mcX: Int = (playArea.left + moveCounterOffset * widthRatio).toInt()
+        val mcScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(mcBitmap, timerWidth)
+        val mcX: Int = (playArea.left + (playArea.width()*0.65f)).toInt()
         val mcY: Int = tbY
         counterBox = CounterBox(mcX, mcY, mcScaledBitmap)
 
         val cdsBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.cdigitsheet)
-        val cdsScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(cdsBitmap, widthRatio)
+        val cdsScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(cdsBitmap, timerWidth)
         counterBox.initDigits(digitWidth, digitWidth * 2, cdsScaledBitmap)
 
         // Setup signs
+        val signWidth: Int = (mViewWidth * signWidthRatio).toInt()
         val sOffBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.soundsign_off)
         val sOnBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.soundsign_on)
         val ssBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.stopsign)
-        val soundOffBitmap = BitmapScaler.scaleBitmap(sOffBitmap, widthRatio)
-        val soundOnBitmap = BitmapScaler.scaleBitmap(sOnBitmap, widthRatio)
+        val soundOffBitmap = BitmapScaler.scaleBitmap(sOffBitmap, signWidth)
+        val soundOnBitmap = BitmapScaler.scaleBitmap(sOnBitmap, signWidth)
         val signSize = soundOffBitmap.width
         val soundRect = Rect(0, mViewHeight-signSize, signSize, mViewHeight)
         soundSign = Sign(soundOnBitmap, soundOffBitmap, soundRect)
@@ -211,7 +212,7 @@ class GameView : SurfaceView, Runnable {
         soundOn = cursor.getInt(0) == 0
         soundSign.signOn = soundOn
 
-        val stopBitmap = BitmapScaler.scaleBitmap(ssBitmap, widthRatio)
+        val stopBitmap = BitmapScaler.scaleBitmap(ssBitmap, signWidth)
         val stopRect = Rect(mViewWidth-signSize, mViewHeight-signSize, mViewWidth, mViewHeight)
         stopSign = Sign(stopBitmap, null, stopRect)
 
@@ -225,7 +226,7 @@ class GameView : SurfaceView, Runnable {
         stoplight = Stoplight(stoplightScaledBitmap, mViewWidth, mViewHeight)
 
         // Setup dialog box
-        var header: String = "Mission ${1+missionNumber}"
+        var header: String = "Mission $missionNumber"
         if (returnScreen == 0) {
             header = "Quick Play"
         }

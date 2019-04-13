@@ -66,9 +66,8 @@ class MissionsScreen : SurfaceView, Runnable {
     private lateinit var selectedMission: Mission
     private var lastMission: Int = 0
 
+    private val missionSignRatio: Float = 0.55f
     private lateinit var missionSignBitmap: Bitmap
-    private val missionSignOffsetX: Int = 40
-    private val missionSignOffsetY: Int = -30
     private var missionSignXs: MutableList<Float> = mutableListOf()
     private var missionSignY: Float = 0f
     private var missionSignTextXOffset: Float = 0f
@@ -90,6 +89,7 @@ class MissionsScreen : SurfaceView, Runnable {
     private var mViewWidth: Int = 0
     private var baseWidth: Float = 1080f
     private val sideMarginBase: Int = 60
+    private val awningRatio: Float = 0.4f
 
     private lateinit var playArea: Rect
     private var windowSize: Int = 0
@@ -104,6 +104,7 @@ class MissionsScreen : SurfaceView, Runnable {
     private lateinit var sidewalk: Sidewalk
     private var buildingOffset: Float = 0f
 
+    private val signWidthRatio = 0.28f
     private lateinit var signLeft: Sign
     private lateinit var signRight: Sign
     private lateinit var signStop: Sign
@@ -200,7 +201,8 @@ class MissionsScreen : SurfaceView, Runnable {
                 else -> BitmapFactory.decodeResource(resources, R.drawable.awning_gray)
             }
 
-            val awningScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(awningBitmap, widthRatio)
+            val awningWidth = (playAreaSize * awningRatio).toInt()
+            val awningScaledBitmap: Bitmap = BitmapScaler.scaleBitmap(awningBitmap, awningWidth)
             curBuilding.initAwnings(awningScaledBitmap)
         }
 
@@ -212,14 +214,15 @@ class MissionsScreen : SurfaceView, Runnable {
         }
 
         // Setup mission signs
+        val missionSignWidth: Int = (mViewWidth * missionSignRatio).toInt()
         val mSign: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.missionsign)
-        missionSignBitmap = BitmapScaler.scaleBitmap(mSign, widthRatio)
+        missionSignBitmap = BitmapScaler.scaleBitmap(mSign, missionSignWidth)
 
         for (m in 0 until missionSignTexts.count()) {
-            missionSignXs.add((m * buildingOffset + playArea.left + missionSignOffsetX * widthRatio))
+            missionSignXs.add(m * buildingOffset +(playArea.left + (playArea.width()*0.05f) * widthRatio))
         }
-        missionSignTextXOffset = missionSignBitmap.width * 0.06f + (playArea.left + missionSignOffsetX * widthRatio) - missionSignXs[0]
-        missionSignY = playArea.top - missionSignBitmap.height + (missionSignOffsetY * widthRatio)
+        missionSignTextXOffset = (missionSignBitmap.width * 0.12f) + playArea.left - missionSignXs[0]
+        missionSignY = (playArea.top - missionSignBitmap.height) - (missionSignBitmap.height * 0.1f)
         missionSignTextY = (playArea.top - missionSignBitmap.height) + (missionSignBitmap.height * 0.4f)
 
         val signFont = Typeface.createFromAsset(context.assets, "futur.otf")
@@ -239,23 +242,24 @@ class MissionsScreen : SurfaceView, Runnable {
         }
 
         // Setup signs
+        val signWidth: Int = (mViewWidth * signWidthRatio).toInt()
         val sLeftBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.arrowsign_left)
         val sRightBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.arrowsign_right)
         val ssBitmap: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.stopsign)
-        val signLeftBitmap = BitmapScaler.scaleBitmap(sLeftBitmap, widthRatio)
+        val signLeftBitmap = BitmapScaler.scaleBitmap(sLeftBitmap, signWidth)
         val signSize = signLeftBitmap.width
         var signLeftRect = Rect(0, mViewHeight, signSize, mViewHeight+signSize)
         if (curBuilding > 0) {
             signLeftRect = Rect(0, mViewHeight-signSize, signSize, mViewHeight)
         }
         signLeft = Sign(signLeftBitmap, null, signLeftRect)
-        val signRightBitmap = BitmapScaler.scaleBitmap(sRightBitmap, widthRatio)
+        val signRightBitmap = BitmapScaler.scaleBitmap(sRightBitmap, signWidth)
         var signRightRect = Rect(mViewWidth-signSize, mViewHeight-signSize, mViewWidth, mViewHeight)
         if (curBuilding == numBuildings-1) {
             signRightRect = Rect(mViewWidth-signSize, mViewHeight, mViewWidth, mViewHeight+signSize)
         }
         signRight = Sign(signRightBitmap, null, signRightRect)
-        var signStopBitmap = BitmapScaler.scaleBitmap(ssBitmap, widthRatio)
+        var signStopBitmap = BitmapScaler.scaleBitmap(ssBitmap, signWidth)
         signStopBitmap = Bitmap.createScaledBitmap(signStopBitmap, signStopBitmap.width, -signStopBitmap.height, true)
         val signStopRect = Rect(mViewWidth-signSize, 0, mViewWidth, signSize)
         signStop = Sign(signStopBitmap, null, signStopRect)
