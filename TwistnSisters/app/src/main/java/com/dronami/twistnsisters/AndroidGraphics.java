@@ -174,6 +174,10 @@ public class AndroidGraphics implements Graphics {
         canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, srcRect, dstRect, null);
     }
 
+    public void drawPixmap(Pixmap pixmap, Rect dstRect, Rect srcRect) {
+        canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, srcRect, dstRect, null);
+    }
+
     public void drawPixmap(Pixmap pixmap, int x, int y) {
         canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, x, y, null);
     }

@@ -3,42 +3,50 @@ package com.dronami.twistnsisters;
 import android.graphics.Color;
 import android.graphics.Rect;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 // This is a simple test screen that just displays an Android logo in front of a green background.
 // If the screen is tapped, the colors are inverted to demonstrate that input is working.
 public class GameScreen extends Screen {
-    int bgColorGreen = 0xA4C639;
-    int bgColorBlack = 0x222222;
-    Pixmap androidGreenPixmap;
-    Pixmap androidBlackPixmap;
-    int androidX;
-    int androidY;
+    GameBoard gameBoard;
     int screenStatus = 0;
 
     Rect playArea;
     int playAreaColor = Color.RED;
 
+    Rect[][] tileRects = new Rect[GameBoard.NUM_TILES_X][GameBoard.NUM_TILES_Y];
+    ArrayList<Integer> tileColors = new ArrayList<Integer>();
+
+    Rect borderRect;
+    Rect separatorRect;
+    int borderColor = Color.DKGRAY;
+
+    Rect headerArea;
+
     public GameScreen(Game game) {
         super(game);
 
-        int droidWidth = (int)(game.getGraphics().getHeight() * 0.15f);
+        int screenWidth = game.getGraphics().getWidth();
+        int screenHeight = game.getGraphics().getHeight();
 
-        androidGreenPixmap = game.getGraphics().newScaledPixmap("droid-green.png",
-                Graphics.PixmapFormat.ARGB4444, droidWidth, false, false);
-        androidBlackPixmap = game.getGraphics().newScaledPixmap("droid-black.png",
-                Graphics.PixmapFormat.ARGB4444, droidWidth, false, false);
-        androidX = (game.getGraphics().getWidth() - androidGreenPixmap.getWidth()) / 2;
-        androidY = (game.getGraphics().getHeight() - androidGreenPixmap.getHeight()) / 2;
+        headerArea = new Rect(0, 0, screenWidth, (int)(screenHeight * 0.08f));
+        int playAreaHeight = (screenHeight - headerArea.bottom) - (int)(screenHeight * 0.03f);
+        int tileSize = playAreaHeight / 9;
+        int playAreaWidth = tileSize * 4;
+        int playAreaTop = headerArea.bottom + (int)(screenHeight * 0.015f);
+        int playAreaLeft = (screenWidth - playAreaWidth) / 2;
+        playArea = new Rect(playAreaLeft, playAreaTop, playAreaLeft + playAreaWidth,
+                playAreaTop + playAreaHeight);
+        int borderSize = playAreaTop - headerArea.bottom;
+        borderRect = new Rect(playArea.left - borderSize, playArea.top - borderSize,
+                playArea.right + borderSize, playArea.bottom + borderSize);
+        separatorRect = new Rect(playAreaLeft, (playArea.top + tileSize - borderSize/2),
+            playArea.right, (playArea.top + tileSize - borderSize/2) + borderSize);
 
-//        int playAreaWidth = (int)(game.getGraphics().getWidth() * 0.7f);
-//        int playAreaHeight = playAreaWidth * 2;
-        int playAreaHeight = (int)(game.getGraphics().getHeight() * 0.85f);
-        int playAreaWidth = playAreaHeight / 2;
-        int playAreaLeft = (game.getGraphics().getWidth() - playAreaWidth) / 2;
-        int playAreaTop = (game.getGraphics().getHeight() - playAreaHeight) * 2 / 3;
-        playArea = new Rect(playAreaLeft, playAreaTop,
-                playAreaLeft + playAreaWidth, playAreaTop + playAreaHeight);
+
+        gameBoard = new GameBoard(playArea, game.getGraphics());
     }
 
     @Override
@@ -55,6 +63,8 @@ public class GameScreen extends Screen {
                 }
             }
         }
+
+        gameBoard.update(deltaTime);
     }
 
     @Override
@@ -62,15 +72,11 @@ public class GameScreen extends Screen {
         Graphics g = game.getGraphics();
 
         g.clear(Color.GRAY);
-        g.drawRect(playArea, playAreaColor);
+        g.drawRect(borderRect, playAreaColor);
+        g.drawRect(headerArea, borderColor);
 
-//        if (screenStatus == 0) {
-//            g.clear(bgColorBlack);
-//            g.drawPixmap(androidGreenPixmap, androidX, androidY);
-//        } else {
-//            g.clear(bgColorGreen);
-//            g.drawPixmap(androidBlackPixmap, androidX, androidY);
-//        }
+        gameBoard.draw(g);
+        g.drawRect(separatorRect, playAreaColor);
     }
 
     @Override
