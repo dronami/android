@@ -52,16 +52,8 @@ public class GameScreen extends Screen {
     @Override
     public void update(float deltaTime) {
         List<Input.TouchEvent> touchEvents = game.getInput().getTouchEvents();
-        int length = touchEvents.size();
-        for (int t = 0; t < length; t++) {
-            Input.TouchEvent event = touchEvents.get(t);
-            if (event.type == Input.TouchEvent.TOUCH_UP) {
-                if (screenStatus == 0) {
-                    screenStatus = 1;
-                } else {
-                    screenStatus = 0;
-                }
-            }
+        if (touchEvents.size() > 0) {
+            gameBoard.handleTouchEvents(touchEvents);
         }
 
         gameBoard.update(deltaTime);

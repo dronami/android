@@ -8,7 +8,11 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.ColorFilter;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.util.Log;
 
@@ -180,6 +184,14 @@ public class AndroidGraphics implements Graphics {
 
     public void drawPixmap(Pixmap pixmap, int x, int y) {
         canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, x, y, null);
+    }
+
+    public void drawPixmapColorized(Pixmap pixmap, Rect dstRect, Rect srcRect, int color) {
+        ColorFilter filter = new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN);
+        paint.setColorFilter(filter);
+
+        canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, srcRect, dstRect, paint);
+        paint.setColorFilter(null);
     }
 
     public int getWidth() {

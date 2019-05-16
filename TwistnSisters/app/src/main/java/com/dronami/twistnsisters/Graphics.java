@@ -34,6 +34,8 @@ public interface Graphics {
                            int srcX, int srcY, int srcWidth, int srcHeight);
     public void drawPixmap(Pixmap pixmap, Rect destRect, Rect srcRect);
 
+    public void drawPixmapColorized(Pixmap pixmap, Rect destRect, Rect srcRect, int color);
+
     public int getWidth();
     public int getHeight();
 }
