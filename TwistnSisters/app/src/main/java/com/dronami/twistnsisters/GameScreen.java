@@ -5,7 +5,6 @@ import android.graphics.Rect;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 // This is a simple test screen that just displays an Android logo in front of a green background.
 // If the screen is tapped, the colors are inverted to demonstrate that input is working.
@@ -14,14 +13,16 @@ public class GameScreen extends Screen {
     int screenStatus = 0;
 
     Rect playArea;
-    int playAreaColor = Color.RED;
 
     Rect[][] tileRects = new Rect[GameBoard.NUM_TILES_X][GameBoard.NUM_TILES_Y];
     ArrayList<Integer> tileColors = new ArrayList<Integer>();
 
     Rect borderRect;
     Rect separatorRect;
-    int borderColor = Color.DKGRAY;
+    int borderColor = Color.rgb(154, 103, 234);
+    int headerColor = Color.rgb(50, 11, 134);
+    int bgColor = Color.rgb(103, 58, 183);
+
 
     Rect headerArea;
 
@@ -63,12 +64,12 @@ public class GameScreen extends Screen {
     public void present(float deltaTime) {
         Graphics g = game.getGraphics();
 
-        g.clear(Color.GRAY);
-        g.drawRect(borderRect, playAreaColor);
-        g.drawRect(headerArea, borderColor);
+        g.clear(bgColor);
+        g.drawRect(borderRect, borderColor);
+        g.drawRect(headerArea, headerColor);
 
         gameBoard.draw(g);
-        g.drawRect(separatorRect, playAreaColor);
+        g.drawRect(separatorRect, borderColor);
     }
 
     @Override
