@@ -7,8 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static java.lang.Float.max;
-
 class Explosion {
     GameBoard gameBoard;
     int color;
@@ -63,22 +61,25 @@ class Explosion {
 
 public class GameBoard {
     static enum BoardState {
-        Dropping, Cascading
+        Active, Cascading
     }
     BoardState boardState;
 
-    public int[] gemColors = new int[4];
+    public int[] gemColors = new int[5];
 
     public static final int NUM_TILES_X = 4;
     public static final int NUM_TILES_Y = 8;
+    public static final int NUM_GEM_TYPES = 4;
     Rect[][] tileRects;
     public int tileSize;
 
     Rect[] gemRects;
     ArrayList<Gem> dropperGems = new ArrayList<Gem>();
+    ArrayList<Gem> fallingGems = new ArrayList<Gem>();
 
     Gem[][] boardGems = new Gem[NUM_TILES_X][NUM_TILES_Y];
     Pixmap gemSheet;
+    Pixmap twistaSheet;
     public ArrayList<Rect> gemSrcRects = new ArrayList<Rect>();
 
     public Pixmap explosionSheet;
@@ -89,6 +90,10 @@ public class GameBoard {
 
     Rect[] columnRects = new Rect[NUM_TILES_X];
     int selectedColumn = -1;
+
+    boolean isDropping = false;
+    final static float DROPPING_DURATION = 0.6f;
+    float droppingCounter = 0.0f;
 
     boolean isTwisting = false;
     final static float TWIST_DURATION = 0.15f;
@@ -121,9 +126,10 @@ public class GameBoard {
     long doubleTapWindow = 200000000;
 
     ArrayList<Gem> cascadeGems = new ArrayList<Gem>();
-    final static float CASCADE_DURATION = 1.5f;
+    final static float CASCADE_DURATION = 0.8f;
     float cascadeCounter = 0.0f;
     int cascadeRow = 0;
+    boolean cascadeHorizontal = false;
 
     public GameBoard(Rect playArea, Graphics g) {
         tileSize = playArea.width() / NUM_TILES_X;
@@ -147,6 +153,8 @@ public class GameBoard {
 
         gemSheet = g.newScaledPixmap("gems-a.png",
                 Graphics.PixmapFormat.ARGB4444, tileSize * 2, false);
+        twistaSheet = g.newScaledPixmap("twistas.png",
+                Graphics.PixmapFormat.ARGB4444, tileSize * 2, false);
         tileBG = g.newScaledPixmap("tilebg.png",
                 Graphics.PixmapFormat.RGB565, tileSize, false);
         tileBGSelected = g.newScaledPixmap("tilebg-light.png",
@@ -169,6 +177,7 @@ public class GameBoard {
         gemColors[1] = 0xFFA9F34E;
         gemColors[2] = 0xFFAE52D4;
         gemColors[3] = 0xFFFF5185;
+        gemColors[4] = 0xFFFBC02D;
 
         for (int c = 0; c < NUM_TILES_X; c++) {
             Rect columnRect = new Rect(playArea.left + c * tileSize, playArea.top,
@@ -177,11 +186,11 @@ public class GameBoard {
         }
 
         int[][] boardPattern = {
-                {0, 0, 0, 2},
+                {0, 0, 0, -1},
                 {1, 1, 1, -1},
-                {3, 2, 3, -1},
-                {-1, -1, -1, -1},
-                {-1, -1, -1, -1},
+                {0, 2, 3, -1},
+                {1, -1, -1, -1},
+                {2, -1, -1, -1},
                 {-1, -1, -1, -1},
                 {-1, -1, -1, -1},
                 {-1, -1, -1, -1}
@@ -189,6 +198,8 @@ public class GameBoard {
 
         initBoardPattern(boardPattern);
         printBoard();
+
+        boardState = BoardState.Active;
     }
 
     private void printBoard() {
@@ -227,6 +238,18 @@ public class GameBoard {
         }
     }
 
+    private void shiftCascadeDown() {
+        for (int c = 0; c < cascadeGems.size(); c++) {
+            Gem curGem = cascadeGems.get(c);
+            boardGems[curGem.column][curGem.row] = null;
+            curGem.row -= 2;
+            boardGems[curGem.column][curGem.row] = curGem;
+            curGem.setCascading(false);
+        }
+
+        cascadeGems.clear();
+    }
+
     private void initBoardPattern(int[][] boardPattern) {
         for (int y = 0; y < NUM_TILES_Y; y++) {
             for (int x = 0; x < NUM_TILES_X; x++) {
@@ -251,19 +274,32 @@ public class GameBoard {
                         && !boardGems[x][y].getIsCascading()) {
                     int gemType = boardGems[x][y].gemType;
                     if (!boardGems[x][y].isTwisting) {
-                        g.drawPixmap(gemSheet, tileRects[x][y].left, tileRects[x][y].top,
-                                gemSrcRects.get(gemType).left, gemSrcRects.get(gemType).top,
-                                gemSrcRects.get(gemType).width(),
-                                gemSrcRects.get(gemType).height());
+                        if (gemType < NUM_GEM_TYPES) {
+                            g.drawPixmap(gemSheet, tileRects[x][y].left, tileRects[x][y].top,
+                                    gemSrcRects.get(gemType).left, gemSrcRects.get(gemType).top,
+                                    gemSrcRects.get(gemType).width(),
+                                    gemSrcRects.get(gemType).height());
+                        }
+                        // Twistas
+                        else {
+                            g.drawPixmap(twistaSheet, tileRects[x][y].left, tileRects[x][y].top,
+                                    gemSrcRects.get(gemType-NUM_GEM_TYPES).left, gemSrcRects.get(gemType-NUM_GEM_TYPES).top,
+                                    gemSrcRects.get(gemType-NUM_GEM_TYPES).width(),
+                                    gemSrcRects.get(gemType-NUM_GEM_TYPES).height());
+                        }
                     }
                 }
             }
         }
 
-        if (boardState == BoardState.Dropping) {
+        //if (boardState == BoardState.Active) {
             for (int d = 0; d < dropperGems.size(); d++) {
                 dropperGems.get(d).draw(g);
             }
+        //}
+
+        for (int f = 0; f < fallingGems.size(); f++) {
+            fallingGems.get(f).draw(g);
         }
 
         if (boardState == BoardState.Cascading) {
@@ -323,8 +359,8 @@ public class GameBoard {
 
     private void spawnDroppers() {
         Random rand = new Random();
-        int typeA = rand.nextInt(4);
-        int typeB = rand.nextInt(4);
+        int typeA = rand.nextInt(6);
+        int typeB = rand.nextInt(6);
 
         ArrayList<Integer> freeColumns = new ArrayList<Integer>();
         for (int c = 0; c < NUM_TILES_X; c++) {
@@ -340,12 +376,32 @@ public class GameBoard {
 
         Gem gemA = new Gem(typeA, columnA, new Rect(gemRects[columnA]), this);
         Gem gemB = new Gem(typeB, columnB, new Rect(gemRects[columnB]), this);
-        gemA.setFastFall(fastFalling);
-        gemB.setFastFall(fastFalling);
+        gemA.currentState = Gem.GemState.Dropping;
+        gemB.currentState = Gem.GemState.Dropping;
         dropperGems.add(gemA);
         dropperGems.add(gemB);
 
-        boardState = BoardState.Dropping;
+        isDropping = true;
+        droppingCounter = 0.0f;
+    }
+
+    private void updateDroppers(float deltaTime) {
+        float ratio = 1.0f - droppingCounter / DROPPING_DURATION;
+        for (int d = 0; d < dropperGems.size(); d++) {
+            Gem curGem = dropperGems.get(d);
+            if (curGem.gemType >= 0) {
+                curGem.scaleRect.set(curGem.gemRect.left + (int)(ratio * (tileSize/2)), curGem.gemRect.top + (int)(ratio * (tileSize/2)),
+                        curGem.gemRect.right - (int)(ratio * (tileSize/2)), curGem.gemRect.bottom - (int)(ratio * (tileSize/2)));
+
+            }
+            droppingCounter += deltaTime;
+            if (droppingCounter > DROPPING_DURATION) {
+                curGem.currentState = Gem.GemState.Waiting;
+                isDropping = false;
+            }
+        }
+
+
     }
 
     private void onGemLanding(Gem gem, int row) {
@@ -380,9 +436,28 @@ public class GameBoard {
         }
     }
 
-    private boolean startCascade(int row) {
-        cascadeGems.clear();
-        Log.d("Assy", "Start cascade: "+row);
+    private boolean startCascadeColumn(int row, int column) {
+        Log.d("Assy", "Start cascadeCol: "+row+", "+column);
+        for (int r = row; r < NUM_TILES_Y; r++) {
+            if (boardGems[column][r] != null) {
+                cascadeGems.add(boardGems[column][r]);
+                boardGems[column][r].setCascading(true);
+            }
+        }
+
+        if (cascadeGems.size() == 0) {
+            return false;
+        }
+
+        Log.d("Assy", "CascadingCol: "+cascadeGems.size());
+        cascadeCounter = 0.0f;
+        cascadeHorizontal = false;
+
+        return true;
+    }
+
+    private boolean startCascadeRow(int row) {
+        Log.d("Assy", "Start cascadeRow: "+row);
         for (int r = row; r < NUM_TILES_Y; r++) {
             for (int c = 0; c < NUM_TILES_X; c++) {
                 if (boardGems[c][r] != null) {
@@ -398,9 +473,10 @@ public class GameBoard {
             return false;
         }
 
-        Log.d("Assy", "Cascading: "+cascadeGems.size());
+        Log.d("Assy", "CascadingRow: "+cascadeGems.size());
         cascadeCounter = 0.0f;
         cascadeRow = row;
+        cascadeHorizontal = true;
 
         return true;
     }
@@ -411,27 +487,62 @@ public class GameBoard {
         for (int d = 0; d < cascadeGems.size(); d++) {
             Gem curGem = cascadeGems.get(d);
             Rect baseRect = tileRects[curGem.column][curGem.row];
-            Log.d("Assy", "CurGem: "+curGem.row +", "+curGem.column);
-            curGem.gemRect.set(baseRect.left, baseRect.top + (int)(ratio * tileSize),
-                    baseRect.right, baseRect.bottom + (int)(ratio * tileSize));
+            if (cascadeHorizontal) {
+                curGem.gemRect.set(baseRect.left, baseRect.top + (int)(ratio * tileSize),
+                        baseRect.right, baseRect.bottom + (int)(ratio * tileSize));
+            } else {
+                curGem.gemRect.set(baseRect.left, baseRect.top + (int)(ratio * tileSize * 2),
+                        baseRect.right, baseRect.bottom + (int)(ratio * tileSize * 2));
+            }
+
         }
 
         cascadeCounter += deltaTime;
         if (cascadeCounter > CASCADE_DURATION) {
             Log.d("Assy", "Cascade complete");
-            shiftBoardDown(cascadeRow-1);
-            boardState = BoardState.Dropping;
+            if (cascadeHorizontal) {
+                shiftBoardDown(cascadeRow - 1);
+            } else {
+                shiftCascadeDown();
+            }
+            boardState = BoardState.Active;
             for (int c = 0; c < cascadeGems.size(); c++) {
                 cascadeGems.get(c).setCascading(false);
             }
             cascadeGems.clear();
+
+            // Check to see if cascade triggered more explosions
+            if (isRowMatch(cascadeRow)) {
+                explodeRow(cascadeRow, boardGems[0][cascadeRow].gemType);
+
+                if (startCascadeRow(cascadeRow)) {
+                    boardState = BoardState.Cascading;
+                }
+            }
+
+            for (int r = 0; r < NUM_TILES_Y - 1; r++) {
+                for (int c = 0; c < NUM_TILES_X; c++) {
+                    if (boardGems[c][r] != null && boardGems[c][r+1] != null
+                        && boardGems[c][r].gemType == boardGems[c][r+1].gemType) {
+                        initExplosion(boardGems[c][r].gemRect, gemColors[boardGems[c][r].gemType]);
+                        initExplosion(boardGems[c][r+1].gemRect, gemColors[boardGems[c][r+1].gemType]);
+
+                        boardGems[c][r] = null;
+                        boardGems[c][r+1] = null;
+                        if (startCascadeColumn(r+1, c)) {
+                            boardState = BoardState.Cascading;
+                        }
+                    }
+                }
+            }
+
         }
     }
 
     public void update(float deltaTime) {
-        if (boardState == BoardState.Dropping) {
-            for (int d = 0; d < dropperGems.size(); d++) {
-                Gem curGem = dropperGems.get(d);
+        if (boardState == BoardState.Active) {
+            for (int d = 0; d < fallingGems.size(); d++) {
+                Gem curGem = fallingGems.get(d);
                 curGem.update(deltaTime);
 
                 if (curGem.currentState == Gem.GemState.Falling) {
@@ -440,13 +551,14 @@ public class GameBoard {
                         if (curGem.gemRect.bottom >= tileRects[curGem.column][0].bottom) {
                             onGemLanding(curGem, 0);
                             if (isRowMatch(0)) {
-                                dropperGems.remove(curGem);
+                                fallingGems.remove(curGem);
                                 explodeRow(0, curGem.gemType);
                                 curGem = null;
 
-                                if (startCascade(1)) {
+                                if (startCascadeRow(1)) {
                                     boardState = BoardState.Cascading;
                                 }
+                                break;
                             }
                         }
                         // Landing on other gems
@@ -454,25 +566,51 @@ public class GameBoard {
                             if (curGem.gemRect.bottom >= tileRects[curGem.column][r].top) {
                                 // Check for vertical match
                                 if (boardGems[curGem.column][r].gemType == curGem.gemType) {
-                                    dropperGems.remove(curGem);
+                                    fallingGems.remove(curGem);
                                     boardGems[curGem.column][r] = null;
-
-                                    if (r + 1 <= NUM_TILES_Y - 1) {
-                                        initExplosion(tileRects[curGem.column][r + 1], gemColors[curGem.gemType]);
-                                    } else {
-                                        initExplosion(curGem.gemRect, gemColors[curGem.gemType]);
+                                    int curGemType = curGem.gemType;
+                                    if (curGemType >= NUM_GEM_TYPES) {
+                                        curGemType = NUM_GEM_TYPES;
                                     }
 
-                                    initExplosion(tileRects[curGem.column][r], gemColors[curGem.gemType]);
+                                    if (r + 1 <= NUM_TILES_Y - 1) {
+                                        initExplosion(tileRects[curGem.column][r + 1], gemColors[curGemType]);
+                                    } else {
+                                        initExplosion(curGem.gemRect, gemColors[curGemType]);
+                                    }
+
+                                    initExplosion(tileRects[curGem.column][r], gemColors[curGemType]);
+
+                                    if (r+1 < NUM_TILES_Y) {
+                                        boardGems[curGem.column][r + 1] = curGem;
+                                        if (isRowMatch(r + 1)) {
+                                            fallingGems.remove(curGem);
+                                            explodeRow(curGem.row + 1, curGemType);
+
+                                            cascadeRow = r + 2;
+                                            if (startCascadeRow(cascadeRow)) {
+                                                boardState = BoardState.Cascading;
+                                            }
+                                            boardGems[curGem.column][r + 1] = null;
+                                            curGem = null;
+                                        } else {
+                                            boardGems[curGem.column][r + 1] = null;
+                                        }
+                                    }
                                 } else {
                                     onGemLanding(curGem, r + 1);
                                     if (isRowMatch(curGem.row)) {
-                                        dropperGems.remove(curGem);
-                                        explodeRow(curGem.row, curGem.gemType);
+                                        fallingGems.remove(curGem);
+                                        int curGemType = curGem.gemType;
+                                        if (curGemType >= NUM_GEM_TYPES) {
+                                            curGemType = NUM_GEM_TYPES;
+                                        }
+
+                                        explodeRow(curGem.row, curGemType);
 
                                         cascadeRow = curGem.row + 1;
                                         curGem = null;
-                                        if (startCascade(cascadeRow)) {
+                                        if (startCascadeRow(cascadeRow)) {
                                             boardState = BoardState.Cascading;
                                         }
 
@@ -483,12 +621,26 @@ public class GameBoard {
                         }
                     }
                 } else if (curGem.currentState == Gem.GemState.Landed) {
-                    dropperGems.remove(curGem);
+                    fallingGems.remove(curGem);
                 }
             }
 
-            if (boardState == BoardState.Dropping && dropperGems.size() == 0) {
+            if (fallingGems.size() == 0) {
+                for (int d = 0; d < dropperGems.size(); d++) {
+                    dropperGems.get(d).currentState = Gem.GemState.Falling;
+                    dropperGems.get(d).setFastFall(fastFalling);
+                    fallingGems.add(dropperGems.get(d));
+                }
+
+                dropperGems.clear();
+            }
+
+            if (/*boardState == BoardState.Active &&*/ dropperGems.size() == 0) {
                 spawnDroppers();
+            }
+
+            if (isDropping) {
+                updateDroppers(deltaTime);
             }
 
             if (isTwisting) {
@@ -612,18 +764,20 @@ public class GameBoard {
         }
 
         // Twist droppers if they are offset by columns
-        for (int d = 0; d < dropperGems.size(); d++) {
-            Gem curDropper = dropperGems.get(d);
+        for (int d = 0; d < fallingGems.size(); d++) {
+            Gem curDropper = fallingGems.get(d);
             if (curDropper.column == twistLeftCol
                     && curDropper.gemRect.bottom >= rightColumnHeight) {
                 twistGemsLeft.add(curDropper);
                 curDropper.column = twistRightCol;
                 curDropper.isTwisting = true;
+                curDropper.stopSquashing();
             } else if (curDropper.column == twistRightCol
                     && curDropper.gemRect.bottom >= leftColumnHeight) {
                 twistGemsRight.add(curDropper);
                 curDropper.column = twistLeftCol;
                 curDropper.isTwisting = true;
+                curDropper.stopSquashing();
             }
         }
 
@@ -639,8 +793,8 @@ public class GameBoard {
             fastFallCounter = 0.0f;
         }
 
-        for (int d = 0; d < dropperGems.size(); d++) {
-            dropperGems.get(d).setFastFall(fastFalling);
+        for (int d = 0; d < fallingGems.size(); d++) {
+            fallingGems.get(d).setFastFall(fastFalling);
         }
         selectedColumn = -1;
     }
@@ -684,6 +838,9 @@ public class GameBoard {
         Rect explosionRect = new Rect((int)(tileRect.left - tileSize * 0.4f), (int)(tileRect.top - tileSize * 0.4f),
                 (int)(tileRect.right + tileSize * 0.4f),(int)(tileRect.bottom + tileSize * 0.4f));
 
+        if (gemType >= NUM_GEM_TYPES) {
+            gemType = NUM_GEM_TYPES;
+        }
         Explosion explosion = new Explosion(this, gemType, explosionRect);
         explosions.add(explosion);
     }

@@ -5,7 +5,7 @@ import android.graphics.Rect;
 public class Gem {
     GameBoard gameBoard;
     static enum GemState {
-        Dropping, Falling, Landing, Landed, Cascading
+        Dropping, Falling, Landing, Landed, Cascading, Waiting
     }
     private static enum SquashState {
         Off, In, On, Out
@@ -21,8 +21,6 @@ public class Gem {
     Rect scaleRect;
 
     static int gemWidth;
-    float droppingDuration = 0.8f;
-    float droppingCounter = 0.0f;
 
     float landingDuration = 0.25f;
     float landingCounter = 0.0f;
@@ -64,6 +62,10 @@ public class Gem {
                 startSquashing(false);
             }
         }
+    }
+
+    public void stopSquashing() {
+        squashingStatus = SquashState.Off;
     }
 
     private void startSquashing(boolean in) {
@@ -121,20 +123,7 @@ public class Gem {
 
     public void update(float deltaTime) {
         if (currentState == GemState.Dropping) {
-            float ratio = 1.0f - droppingCounter / droppingDuration;
 
-            if (gemType >= 0) {
-                scaleRect.set(gemRect.left + (int)(ratio * (gameBoard.tileSize/2)), gemRect.top + (int)(ratio * (gameBoard.tileSize/2)),
-                        gemRect.right - (int)(ratio * (gameBoard.tileSize/2)), gemRect.bottom - (int)(ratio * (gameBoard.tileSize/2)));
-
-            }
-            droppingCounter += deltaTime;
-            if (droppingCounter > droppingDuration) {
-                currentState = GemState.Falling;
-                if (isFastFalling) {
-                    startSquashing(true);
-                }
-            }
         } else if (currentState == GemState.Falling) {
             int offset = (int)(deltaTime * dropperSpeed);
             gemRect.offset(0, offset);
@@ -164,17 +153,23 @@ public class Gem {
     }
 
     public void draw(Graphics g) {
+        int curType = gemType;
+        Pixmap curSheet = gameBoard.gemSheet;
+        if (gemType >= gameBoard.NUM_GEM_TYPES) {
+            curType -= gameBoard.NUM_GEM_TYPES;
+            curSheet = gameBoard.twistaSheet;
+        }
         if (currentState == GemState.Dropping) {
-            g.drawPixmap(gameBoard.gemSheet, scaleRect, gameBoard.gemSrcRects.get(gemType));
+            g.drawPixmap(curSheet, scaleRect, gameBoard.gemSrcRects.get(curType));
         } else if (squashingStatus != SquashState.Off) {
-            g.drawPixmap(gameBoard.gemSheet, squashRect, gameBoard.gemSrcRects.get(gemType));
+            g.drawPixmap(curSheet, squashRect, gameBoard.gemSrcRects.get(curType));
         } else {
             if (currentState == GemState.Landing) {
-                g.drawPixmap(gameBoard.gemSheet, scaleRect, gameBoard.gemSrcRects.get(gemType));
+                g.drawPixmap(curSheet, scaleRect, gameBoard.gemSrcRects.get(curType));
             } else if (currentState == GemState.Falling) {
-                g.drawPixmap(gameBoard.gemSheet, gemRect, gameBoard.gemSrcRects.get(gemType));
+                g.drawPixmap(curSheet, gemRect, gameBoard.gemSrcRects.get(curType));
             } else {
-                g.drawPixmap(gameBoard.gemSheet, gemRect, gameBoard.gemSrcRects.get(gemType));
+                g.drawPixmap(curSheet, gemRect, gameBoard.gemSrcRects.get(curType));
             }
         }
     }
