@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
@@ -26,6 +27,7 @@ public class AndroidGraphics implements Graphics {
     Paint paint;
     Rect srcRect = new Rect();
     Rect dstRect = new Rect();
+    Matrix matrix = new Matrix();
 
     public AndroidGraphics(AssetManager assetManager, Bitmap frameBuffer) {
         this.assetManager = assetManager;
@@ -192,6 +194,17 @@ public class AndroidGraphics implements Graphics {
 
         canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, srcRect, dstRect, paint);
         paint.setColorFilter(null);
+    }
+
+    public void drawMatrixPixmap(Pixmap pixmap, int x, int y, float rotation,
+                                 float scaleX, float scaleY) {
+        matrix.reset();
+        matrix.postTranslate(-pixmap.getWidth() / 2, -pixmap.getHeight() / 2);
+        matrix.postScale(scaleX, scaleY);
+        matrix.postRotate(rotation);
+        matrix.postTranslate(pixmap.getWidth() / 2, pixmap.getHeight() / 2);
+        matrix.postTranslate(x, y);
+        canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, matrix, paint);
     }
 
     public int getWidth() {

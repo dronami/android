@@ -35,6 +35,8 @@ public interface Graphics {
     public void drawPixmap(Pixmap pixmap, Rect destRect, Rect srcRect);
 
     public void drawPixmapColorized(Pixmap pixmap, Rect destRect, Rect srcRect, int color);
+    public void drawMatrixPixmap(Pixmap pixmap, int x, int y, float rotation,
+                                 float scaleX, float scaleY);
 
     public int getWidth();
     public int getHeight();

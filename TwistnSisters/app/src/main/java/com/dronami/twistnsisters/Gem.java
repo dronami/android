@@ -5,7 +5,7 @@ import android.graphics.Rect;
 public class Gem {
     GameBoard gameBoard;
     static enum GemState {
-        Dropping, Falling, Landing, Landed, Cascading, Waiting
+        Dropping, Falling, Landing, Landed, Cascading, Waiting, SpinningIn, SpinningOut, Hidden
     }
     private static enum SquashState {
         Off, In, On, Out
@@ -36,6 +36,11 @@ public class Gem {
     static int squashWidthDiff = 0;
     static int squashHeightDiff = 0;
     Rect squashRect;
+
+    float currentRotation = 0.0f;
+    float currentScale = 1.0f;
+    float spinningDuration = 0.5f;
+    float spinningCounter = 0.0f;
 
     Gem(int gemType, int column, Rect gemRect, GameBoard gameBoard) {
         currentState = GemState.Dropping;
@@ -107,6 +112,41 @@ public class Gem {
         }
     }
 
+    public void startSpinning(boolean in, float duration) {
+        spinningDuration = duration;
+        spinningCounter = 0.0f;
+        if (in) {
+            currentState = GemState.SpinningIn;
+            currentScale = 0.0f;
+        } else {
+            currentState = GemState.SpinningOut;
+            currentScale = 1.0f;
+        }
+
+        currentRotation = 0.0f;
+    }
+
+    private void updateSpinning(float deltaTime) {
+        float ratio = spinningCounter / spinningDuration;
+
+        if (currentState == GemState.SpinningIn) {
+            currentRotation = ratio * 720.0f;
+            currentScale = ratio;
+        } else {
+            currentRotation = ratio * 720.0f;
+            currentScale = 1.0f - ratio;
+        }
+
+        spinningCounter += deltaTime;
+        if (spinningCounter > spinningDuration) {
+            if (currentState == GemState.SpinningIn) {
+                currentState = GemState.Waiting;
+            } else {
+                currentState = GemState.Hidden;
+            }
+         }
+    }
+
     private void updateTrail() {
 
 //        trailOffsetCounter += deltaTime;
@@ -122,8 +162,8 @@ public class Gem {
     }
 
     public void update(float deltaTime) {
-        if (currentState == GemState.Dropping) {
-
+        if (currentState == GemState.SpinningIn || currentState == GemState.SpinningOut) {
+            updateSpinning(deltaTime);
         } else if (currentState == GemState.Falling) {
             int offset = (int)(deltaTime * dropperSpeed);
             gemRect.offset(0, offset);
@@ -154,23 +194,22 @@ public class Gem {
 
     public void draw(Graphics g) {
         int curType = gemType;
-        Pixmap curSheet = gameBoard.gemSheet;
+        Pixmap curPixmap;
         if (gemType >= gameBoard.NUM_GEM_TYPES) {
             curType -= gameBoard.NUM_GEM_TYPES;
-            curSheet = gameBoard.twistaSheet;
-        }
-        if (currentState == GemState.Dropping) {
-            g.drawPixmap(curSheet, scaleRect, gameBoard.gemSrcRects.get(curType));
-        } else if (squashingStatus != SquashState.Off) {
-            g.drawPixmap(curSheet, squashRect, gameBoard.gemSrcRects.get(curType));
+            curPixmap = gameBoard.twistaPixmaps[curType];
         } else {
-            if (currentState == GemState.Landing) {
-                g.drawPixmap(curSheet, scaleRect, gameBoard.gemSrcRects.get(curType));
-            } else if (currentState == GemState.Falling) {
-                g.drawPixmap(curSheet, gemRect, gameBoard.gemSrcRects.get(curType));
-            } else {
-                g.drawPixmap(curSheet, gemRect, gameBoard.gemSrcRects.get(curType));
-            }
+            curPixmap = gameBoard.gemPixmaps[curType];
+        }
+        if (currentState == GemState.SpinningIn || currentState == GemState.SpinningOut) {
+            g.drawMatrixPixmap(curPixmap, gemRect.left, gemRect.top, currentRotation,
+                    currentScale, currentScale);
+        } else if (squashingStatus != SquashState.Off) {
+            g.drawPixmap(curPixmap, squashRect, gameBoard.gemSrcRect);
+        } else if (currentState == GemState.Landing) {
+            g.drawPixmap(curPixmap, scaleRect, gameBoard.gemSrcRect);
+        } else if (currentState != GemState.Hidden) {
+            g.drawPixmap(curPixmap, gemRect, gameBoard.gemSrcRect);
         }
     }
 
