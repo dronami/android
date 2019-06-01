@@ -1,6 +1,7 @@
 package com.dronami.twistnsisters;
 
 import android.graphics.Rect;
+import android.util.Log;
 
 public class Gem {
     GameBoard gameBoard;
@@ -147,6 +148,32 @@ public class Gem {
          }
     }
 
+    public void startLanding(int row) {
+        this.row = row;
+        scaleRect.set(gemRect);
+        currentState = GemState.Landing;
+        landingCounter = 0.0f;
+        squashingStatus = SquashState.Off;
+    }
+
+    private void updateLanding(float deltaTime) {
+        float ratio = landingCounter / landingDuration;
+
+        if (ratio <= 0.5f) {
+            scaleRect.set(gemRect.left - (int)((ratio / 0.5f) * (gameBoard.tileSize/4)), gemRect.top + (int)((ratio / 0.5f) * (gameBoard.tileSize/2)),
+                    gemRect.right + (int)((ratio / 0.5f) * (gameBoard.tileSize/4)), gemRect.bottom);
+        } else {
+            scaleRect.set(gemRect.left - (gameBoard.tileSize/4) + (int)((gameBoard.tileSize/4) * (ratio-0.5f)/0.5f), gemRect.top + (gameBoard.tileSize/2) - (int)((gameBoard.tileSize/2) * (ratio-0.5f)/0.5f),
+                    gemRect.right + (gameBoard.tileSize/4) - (int)((gameBoard.tileSize/4) * (ratio-0.5f)/0.5f), gemRect.bottom);
+        }
+        landingCounter += deltaTime;
+        if (landingCounter > landingDuration) {
+            currentState = GemState.Landed;
+        }
+
+        updateTrail();
+    }
+
     private void updateTrail() {
 
 //        trailOffsetCounter += deltaTime;
@@ -170,21 +197,7 @@ public class Gem {
 
             updateTrail();
         } else if (currentState == GemState.Landing) {
-            float ratio = landingCounter / landingDuration;
-
-            if (ratio <= 0.5f) {
-                scaleRect.set(gemRect.left, gemRect.top + (int)((ratio / 0.5f) * (gameBoard.tileSize/3)),
-                        gemRect.right, gemRect.bottom);
-            } else {
-                scaleRect.set(gemRect.left, gemRect.top + (gameBoard.tileSize/3) - (int)((gameBoard.tileSize/3) * (ratio-0.5f)/0.5f),
-                        gemRect.right, gemRect.bottom);
-            }
-            landingCounter += deltaTime;
-            if (landingCounter > landingDuration) {
-                currentState = GemState.Landed;
-            }
-
-            updateTrail();
+            updateLanding(deltaTime);
         }
 
         if (squashingStatus != SquashState.Off) {
@@ -211,14 +224,6 @@ public class Gem {
         } else if (currentState != GemState.Hidden) {
             g.drawPixmap(curPixmap, gemRect, gameBoard.gemSrcRect);
         }
-    }
-
-    public void startLanding(int row) {
-        this.row = row;
-        scaleRect.set(gemRect);
-        currentState = GemState.Landing;
-        landingCounter = 0.0f;
-        squashingStatus = SquashState.Off;
     }
 
     public void setCascading(boolean isCascading) {

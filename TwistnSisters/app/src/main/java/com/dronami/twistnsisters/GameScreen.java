@@ -47,7 +47,7 @@ public class GameScreen extends Screen {
             playArea.right, (playArea.top + tileSize - borderSize/2) + borderSize);
 
 
-        gameBoard = new GameBoard(playArea, game.getGraphics());
+        gameBoard = new GameBoard(playArea, game.getGraphics(), game.getFontManager());
     }
 
     @Override

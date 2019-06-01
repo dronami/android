@@ -25,6 +25,7 @@ public class AndroidGame extends Activity implements Game {
     FileIO fileIO;
     Screen screen;
     PowerManager.WakeLock wakeLock;
+    FontManager fontManager;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -63,6 +64,9 @@ public class AndroidGame extends Activity implements Game {
 
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "Dronami:GLGame");
+
+        fontManager = FontManager.getInstance();
+        fontManager.initializeFont(this, "futur.otf");
     }
 
     @Override
@@ -99,6 +103,13 @@ public class AndroidGame extends Activity implements Game {
 
     public Audio getAudio() {
         return audio;
+    }
+
+    public FontManager getFontManager() {
+        if (fontManager == null) {
+            fontManager = FontManager.getInstance();
+        }
+        return fontManager;
     }
 
     public void setScreen(Screen screen) {

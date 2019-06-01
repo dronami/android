@@ -1,5 +1,7 @@
 package com.dronami.twistnsisters;
 
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
 
@@ -8,20 +10,20 @@ import java.util.List;
 import java.util.Random;
 
 class Explosion {
-    GameBoard gameBoard;
+    static GameBoard gameBoard;
     int color;
     Rect explosionRect;
 
     public boolean isFinished = false;
 
-    static final float explosionDuration = 0.2f;
-    float frameDuration = explosionDuration / NUM_FRAMES;
+    static final float EXPLOSION_DURATION = 0.3f;
+    float frameDuration = EXPLOSION_DURATION / NUM_FRAMES;
     float frameCounter = 0.0f;
 
     int currentFrame = 0;
-    static final int NUM_FRAMES = 7;
-    static final int NUM_SHEET_ROWS = 3;
-    static final int NUM_SHEET_COLS = 3;
+    static final int NUM_FRAMES = 16;
+    static final int NUM_SHEET_ROWS = 4;
+    static final int NUM_SHEET_COLS = 4;
 
     static boolean frameRectsInitialized = false;
     static Rect frameSrcRects[] = new Rect[NUM_SHEET_ROWS * NUM_SHEET_COLS];
@@ -59,11 +61,74 @@ class Explosion {
     }
 }
 
+class PointBubble {
+    static float fontSize;
+    static boolean fontInitialized = false;
+    static Paint fontPaint = new Paint();
+    static Paint shadowPaint = new Paint();
+    static GameBoard gameBoard;
+    static final float margin = 0.1f;
+    int color;
+    Rect pbRect;
+    String pointsString;
+    static float textHeight;
+
+    int x;
+    int y;
+    int shadowOffset;
+
+    public boolean isFinished = false;
+
+    static final float POINT_BUBBLE_DURATION = 1.0f;
+    float pointBubbleCounter = 0.0f;
+
+    public PointBubble(GameBoard gameBoard, int color, Rect pbRect, int points) {
+        this.gameBoard = gameBoard;
+        this.color = color;
+        this.pbRect = pbRect;
+        pointsString = "+"+points;
+
+        pointBubbleCounter = 0.0f;
+        if (!fontInitialized) {
+            fontSize = gameBoard.fontManager.getBiggestFontSize(0, (int)(gameBoard.tileSize * (1.0f - margin * 2)), "+99");
+            textHeight = gameBoard.fontManager.getTextHeight(0, fontSize, "+99");
+            fontPaint.setTypeface(gameBoard.fontManager.getTypeface(0));
+            fontPaint.setTextSize(fontSize);
+            fontPaint.setColor(color);
+            fontPaint.setAntiAlias(true);
+            shadowPaint.set(fontPaint);
+            shadowPaint.setColor(Color.BLACK);
+            fontInitialized = true;
+
+            Log.d("Assy", "Font Size: "+fontSize+", "+textHeight);
+        }
+
+        float textWidth = gameBoard.fontManager.getTextWidth(0, fontSize, pointsString);
+        x = pbRect.left + (int)((gameBoard.tileSize - textWidth)/2);
+        y = pbRect.top + (gameBoard.tileSize/2) + (int)(textHeight / 2);
+        shadowOffset = (int)(gameBoard.tileSize * 0.05f);
+    }
+
+    public void update(float deltaTime) {
+
+        pointBubbleCounter += deltaTime;
+        if (pointBubbleCounter > POINT_BUBBLE_DURATION) {
+            isFinished = true;
+        }
+    }
+
+    public void draw(Graphics g) {
+        g.drawText(pointsString, x + shadowOffset, y + shadowOffset, shadowPaint);
+        g.drawText(pointsString, x, y, fontPaint);
+    }
+}
+
 public class GameBoard {
     static enum BoardState {
         Active, Cascading, TwistaSquashing
     }
     BoardState boardState;
+    FontManager fontManager;
 
     public int[] gemColors = new int[5];
 
@@ -88,6 +153,9 @@ public class GameBoard {
 
     public Pixmap explosionSheet;
     public ArrayList<Explosion> explosions = new ArrayList<Explosion>();
+    float explosionMargin = 0.6f;
+
+    public ArrayList<PointBubble> pointBubbles = new ArrayList<PointBubble>();
 
     Pixmap tileBG;
     Pixmap tileBGSelected;
@@ -145,8 +213,9 @@ public class GameBoard {
     int twistaCount = 0;
     int twistaBottomRow = 0;
 
-    public GameBoard(Rect playArea, Graphics g) {
+    public GameBoard(Rect playArea, Graphics g, FontManager fontManager) {
         tileSize = playArea.width() / NUM_TILES_X;
+        this.fontManager = fontManager;
 
         gemRects = new Rect[NUM_TILES_X];
         for (int x = 0; x < NUM_TILES_X; x++) {
@@ -333,6 +402,10 @@ public class GameBoard {
             explosions.get(e).draw(g);
         }
 
+        for (int p = 0; p < pointBubbles.size(); p++) {
+            pointBubbles.get(p).draw(g);
+        }
+
         if (isTwisting) {
             for (int l = 0; l < twistGemsLeft.size(); l++) {
                 twistGemsLeft.get(l).draw(g);
@@ -436,6 +509,17 @@ public class GameBoard {
         }
     }
 
+    private void clearGem(Gem gem, int multiplier) {
+        int points = 1 * multiplier;
+        int curGemType = gem.gemType;
+        if (curGemType > NUM_GEM_TYPES) {
+            curGemType = NUM_GEM_TYPES;
+        }
+        initExplosion(gem.gemRect, gemColors[curGemType]);
+        initPointBubble(gem.gemRect, points, gemColors[4]);
+        boardGems[gem.column][gem.row] = null;
+    }
+
     private boolean isRowMatch(int row) {
         if (row >= NUM_TILES_Y || boardGems[0][row] == null) {
             return false;
@@ -453,8 +537,9 @@ public class GameBoard {
 
     private void explodeRow(int row, int gemType) {
         for (int c = 0; c < NUM_TILES_X; c++) {
-            initExplosion(tileRects[c][row], gemColors[gemType]);
-            boardGems[c][row] = null;
+            clearGem(boardGems[c][row], 4);
+            //initExplosion(tileRects[c][row], gemColors[gemType]);
+            //boardGems[c][row] = null;
         }
     }
 
@@ -474,6 +559,7 @@ public class GameBoard {
         Log.d("Assy", "CascadingCol: "+cascadeGems.size());
         cascadeCounter = 0.0f;
         cascadeHorizontal = false;
+        setFastFalling(false);
 
         return true;
     }
@@ -546,11 +632,14 @@ public class GameBoard {
                 for (int c = 0; c < NUM_TILES_X; c++) {
                     if (boardGems[c][r] != null && boardGems[c][r+1] != null
                         && boardGems[c][r].gemType == boardGems[c][r+1].gemType) {
-                        initExplosion(boardGems[c][r].gemRect, gemColors[boardGems[c][r].gemType]);
-                        initExplosion(boardGems[c][r+1].gemRect, gemColors[boardGems[c][r+1].gemType]);
+                        clearGem(boardGems[c][r], 1);
+                        clearGem(boardGems[c][r+1], 1);
 
-                        boardGems[c][r] = null;
-                        boardGems[c][r+1] = null;
+                        //initExplosion(boardGems[c][r].gemRect, gemColors[boardGems[c][r].gemType]);
+                        //initExplosion(boardGems[c][r+1].gemRect, gemColors[boardGems[c][r+1].gemType]);
+                        //boardGems[c][r] = null;
+                        //boardGems[c][r+1] = null;
+
                         if (startCascadeColumn(r+1, c)) {
                             boardState = BoardState.Cascading;
                         }
@@ -614,8 +703,9 @@ public class GameBoard {
                     if (curTwista - 1 < twistaGems.size()) {
                         Gem curGem = twistaGems.get(curTwista - 1);
                         Log.d("Assy", "Twista Gem: "+curGem.column+", "+curGem.row);
-                        initExplosion(tileRects[curGem.column][curGem.row], gemColors[curGem.gemType]);
-                        boardGems[curGem.column][curGem.row] = null;
+                        clearGem(curGem, curTwista + 1);
+                        //initExplosion(tileRects[curGem.column][curGem.row], gemColors[curGem.gemType]);
+                        //boardGems[curGem.column][curGem.row] = null;
                         twistaStartRect.offset(0, tileSize);
                     }
                 }
@@ -635,8 +725,8 @@ public class GameBoard {
                         if (curGem.gemRect.bottom >= tileRects[curGem.column][0].bottom) {
                             if (curGem.gemType == 4) {
                                 initExplosion(tileRects[curGem.column][r], gemColors[curGem.gemType]);
-                                fallingGems.remove(curGem);
                                 curGem = null;
+                                fallingGems.remove(curGem);
                                 break;
                             } else {
                                 onGemLanding(curGem, 0);
@@ -658,20 +748,23 @@ public class GameBoard {
                                 // Check for vertical match
                                 if (boardGems[curGem.column][r].gemType == curGem.gemType) {
                                     fallingGems.remove(curGem);
-                                    boardGems[curGem.column][r] = null;
+                                    //boardGems[curGem.column][r] = null;
                                     int curGemType = curGem.gemType;
 
                                     if (curGemType >= NUM_GEM_TYPES) {
                                         curGemType = NUM_GEM_TYPES;
                                     }
 
+                                    curGem.row = r+1;
+                                    clearGem(curGem, 1);
+                                    clearGem(boardGems[curGem.column][r], 1);
                                     if (r + 1 <= NUM_TILES_Y - 1) {
-                                        initExplosion(tileRects[curGem.column][r + 1], gemColors[curGemType]);
+                                        //initExplosion(tileRects[curGem.column][r + 1], gemColors[curGemType]);
                                     } else {
-                                        initExplosion(curGem.gemRect, gemColors[curGemType]);
+                                        //initExplosion(curGem.gemRect, gemColors[curGemType]);
                                     }
 
-                                    initExplosion(tileRects[curGem.column][r], gemColors[curGemType]);
+                                    //initExplosion(tileRects[curGem.column][r], gemColors[curGemType]);
 
                                     if (r+1 < NUM_TILES_Y) {
                                         boardGems[curGem.column][r + 1] = curGem;
@@ -758,42 +851,7 @@ public class GameBoard {
             }
 
             if (isTwisting) {
-                float ratio = twistCounter / TWIST_DURATION;
-                if (ratio > 1.0f) {
-                    ratio = 1.0f;
-                }
-
-                for (int l = 0; l < twistGemsLeft.size(); l++) {
-                    twistGemsLeft.get(l).gemRect.set((int) (twistLeftX + tileSize * ratio), twistGemsLeft.get(l).gemRect.top,
-                            (int) (twistLeftX + (tileSize * ratio) + tileSize), twistGemsLeft.get(l).gemRect.bottom);
-                }
-                for (int r = 0; r < twistGemsRight.size(); r++) {
-                    twistGemsRight.get(r).gemRect.set((int) (twistRightX - tileSize * ratio), twistGemsRight.get(r).gemRect.top,
-                            (int) (twistRightX - (tileSize * ratio) + tileSize), twistGemsRight.get(r).gemRect.bottom);
-                }
-
-                twistCounter += deltaTime;
-                if (twistCounter > TWIST_DURATION) {
-                    isTwisting = false;
-
-                    for (int l = 0; l < twistGemsLeft.size(); l++) {
-                        twistGemsLeft.get(l).isTwisting = false;
-                        if (twistGemsLeft.get(l).currentState != Gem.GemState.Falling) {
-                            twistGemsLeft.get(l).column = twistStartColumn+1;
-                            Log.d("Assy", "TwistColL: "+twistGemsLeft.get(l).column);
-                        }
-                    }
-                    for (int r = 0; r < twistGemsRight.size(); r++) {
-                        twistGemsRight.get(r).isTwisting = false;
-                        if (twistGemsRight.get(r).currentState != Gem.GemState.Falling) {
-                            twistGemsRight.get(r).column = twistStartColumn;
-                            Log.d("Assy", "TwistColR: "+twistGemsRight.get(r).column);
-                        }
-                    }
-
-                    twistGemsLeft.clear();
-                    twistGemsRight.clear();
-                }
+                updateTwisting(deltaTime);
             }
 
             if (fastFalling) {
@@ -809,13 +867,24 @@ public class GameBoard {
         } else if (boardState == BoardState.Cascading) {
             updateCascade(deltaTime);
         } else if (boardState == BoardState.TwistaSquashing) {
-            updateTwista(deltaTime);
+            if (!isTwisting) {
+                updateTwista(deltaTime);
+            } else {
+                updateTwisting(deltaTime);
+            }
         }
 
         for (int e = explosions.size() - 1; e >= 0; e--) {
             explosions.get(e).update(deltaTime);
             if (explosions.get(e).isFinished) {
                 explosions.remove(e);
+            }
+        }
+
+        for (int p = pointBubbles.size() - 1; p >= 0; p--) {
+            pointBubbles.get(p).update(deltaTime);
+            if (pointBubbles.get(p).isFinished) {
+                pointBubbles.remove(p);
             }
         }
     }
@@ -842,11 +911,15 @@ public class GameBoard {
                     if (boardGems[x][y] != null) {
                         twistGemsLeft.add(boardGems[x][y]);
                         boardGems[x][y].isTwisting = true;
+                        boardGems[x][y].column = twistLeftCol + 1;
+                        boardGems[x][y].stopSquashing();
                     }
                 } else if (x == twistRightCol) {
                     if (boardGems[x][y] != null) {
                         twistGemsRight.add(boardGems[x][y]);
                         boardGems[x][y].isTwisting = true;
+                        boardGems[x][y].column = twistRightCol - 1;
+                        boardGems[x][y].stopSquashing();
                     }
                 }
             }
@@ -905,6 +978,45 @@ public class GameBoard {
         selectedColumn = -1;
     }
 
+    private void updateTwisting(float deltaTime) {
+        twistCounter += deltaTime;
+        float ratio = twistCounter / TWIST_DURATION;
+        if (ratio > 1.0f) {
+            ratio = 1.0f;
+        }
+
+        for (int l = 0; l < twistGemsLeft.size(); l++) {
+            twistGemsLeft.get(l).gemRect.set((int) (twistLeftX + tileSize * ratio), twistGemsLeft.get(l).gemRect.top,
+                    (int) (twistLeftX + (tileSize * ratio) + tileSize), twistGemsLeft.get(l).gemRect.bottom);
+            twistGemsLeft.get(l).update(deltaTime);
+        }
+        for (int r = 0; r < twistGemsRight.size(); r++) {
+            twistGemsRight.get(r).gemRect.set((int) (twistRightX - tileSize * ratio), twistGemsRight.get(r).gemRect.top,
+                    (int) (twistRightX - (tileSize * ratio) + tileSize), twistGemsRight.get(r).gemRect.bottom);
+            twistGemsRight.get(r).update(deltaTime);
+        }
+
+        if (twistCounter > TWIST_DURATION) {
+            isTwisting = false;
+
+            for (int l = 0; l < twistGemsLeft.size(); l++) {
+                twistGemsLeft.get(l).isTwisting = false;
+                if (twistGemsLeft.get(l).currentState != Gem.GemState.Falling) {
+                    Log.d("Assy", "TwistColL: "+twistGemsLeft.get(l).column);
+                }
+            }
+            for (int r = 0; r < twistGemsRight.size(); r++) {
+                twistGemsRight.get(r).isTwisting = false;
+                if (twistGemsRight.get(r).currentState != Gem.GemState.Falling) {
+                    Log.d("Assy", "TwistColR: "+twistGemsRight.get(r).column);
+                }
+            }
+
+            twistGemsLeft.clear();
+            twistGemsRight.clear();
+        }
+    }
+
     private void setFastFalling(boolean fastFalling) {
         this.fastFalling = fastFalling;
         if (fastFalling) {
@@ -957,13 +1069,21 @@ public class GameBoard {
     }
 
     private void initExplosion(Rect tileRect, int gemType) {
-        Rect explosionRect = new Rect((int)(tileRect.left - tileSize * 0.4f), (int)(tileRect.top - tileSize * 0.4f),
-                (int)(tileRect.right + tileSize * 0.4f),(int)(tileRect.bottom + tileSize * 0.4f));
+        Rect explosionRect = new Rect((int)(tileRect.left - tileSize * explosionMargin), (int)(tileRect.top - tileSize * explosionMargin),
+                (int)(tileRect.right + tileSize * explosionMargin),(int)(tileRect.bottom + tileSize * explosionMargin));
 
         if (gemType >= NUM_GEM_TYPES) {
             gemType = NUM_GEM_TYPES;
         }
         Explosion explosion = new Explosion(this, gemType, explosionRect);
         explosions.add(explosion);
+    }
+
+    private void initPointBubble(Rect tileRect, int points, int color) {
+        Rect explosionRect = new Rect((int)(tileRect.left - tileSize * explosionMargin), (int)(tileRect.top - tileSize * explosionMargin),
+                (int)(tileRect.right + tileSize * explosionMargin),(int)(tileRect.bottom + tileSize * explosionMargin));
+
+        PointBubble pointBubble = new PointBubble(this, color, tileRect, points);
+        pointBubbles.add(pointBubble);
     }
 }

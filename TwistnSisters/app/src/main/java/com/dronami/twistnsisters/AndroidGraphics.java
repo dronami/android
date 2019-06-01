@@ -207,6 +207,11 @@ public class AndroidGraphics implements Graphics {
         canvas.drawBitmap(((AndroidPixmap)pixmap).bitmap, matrix, paint);
     }
 
+    public void drawText(String text, int x, int y, Paint fontPaint) {
+        paint.set(fontPaint);
+        canvas.drawText(text, x, y, paint);
+    }
+
     public int getWidth() {
         return frameBuffer.getWidth();
     }

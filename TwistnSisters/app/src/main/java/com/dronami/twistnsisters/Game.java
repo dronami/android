@@ -9,6 +9,7 @@ public interface Game {
     public FileIO getFileIO();
     public Graphics getGraphics();
     public Audio getAudio();
+    public FontManager getFontManager();
 
     public void setScreen(Screen screen);
     public Screen getCurrentScreen();
