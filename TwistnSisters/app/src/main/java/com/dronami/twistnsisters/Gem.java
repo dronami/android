@@ -1,5 +1,7 @@
 package com.dronami.twistnsisters;
 
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
 
@@ -43,6 +45,8 @@ public class Gem {
     float spinningDuration = 0.5f;
     float spinningCounter = 0.0f;
 
+    Paint debugPaint = new Paint();
+
     Gem(int gemType, int column, Rect gemRect, GameBoard gameBoard) {
         currentState = GemState.Dropping;
         this.gameBoard = gameBoard;
@@ -55,6 +59,9 @@ public class Gem {
 
         scaleRect = new Rect();
         squashRect = new Rect();
+
+        debugPaint.setTextSize(20);
+        debugPaint.setColor(Color.WHITE);
     }
 
     public void setFastFall(boolean isFastFalling) {
@@ -62,10 +69,14 @@ public class Gem {
             this.isFastFalling = isFastFalling;
             if (isFastFalling) {
                 dropperSpeed = dropperSpeedBase * fastFallRatio;
-                startSquashing(true);
+                if (currentState == GemState.Falling) {
+                    startSquashing(true);
+                }
             } else {
                 dropperSpeed = dropperSpeedBase;
-                startSquashing(false);
+                if (currentState == GemState.Falling) {
+                    startSquashing(false);
+                }
             }
         }
     }
@@ -170,22 +181,6 @@ public class Gem {
         if (landingCounter > landingDuration) {
             currentState = GemState.Landed;
         }
-
-        updateTrail();
-    }
-
-    private void updateTrail() {
-
-//        trailOffsetCounter += deltaTime;
-//        if (trailOffsetCounter > trailOffsetDuration || true) {
-//            trailOffsetCounter = trailOffsetCounter - trailOffsetDuration;
-//            // Shift trails down
-//            for (int t = TRAIL_LENGTH-1; t > 0; t--) {
-//                trailRects[t].set(trailRects[t-1]);
-//            }
-//            // Add current position at head of trail
-//            trailRects[0].set(gemRect);
-//        }
     }
 
     public void update(float deltaTime) {
@@ -194,8 +189,6 @@ public class Gem {
         } else if (currentState == GemState.Falling) {
             int offset = (int)(deltaTime * dropperSpeed);
             gemRect.offset(0, offset);
-
-            updateTrail();
         } else if (currentState == GemState.Landing) {
             updateLanding(deltaTime);
         }
@@ -224,6 +217,9 @@ public class Gem {
         } else if (currentState != GemState.Hidden) {
             g.drawPixmap(curPixmap, gemRect, gameBoard.gemSrcRect);
         }
+
+
+        g.drawText(column+", "+row, gemRect.left + gameBoard.tileSize/2, gemRect.top + gameBoard.tileSize/2, debugPaint);
     }
 
     public void setCascading(boolean isCascading) {
