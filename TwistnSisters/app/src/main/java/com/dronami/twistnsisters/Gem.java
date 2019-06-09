@@ -28,8 +28,10 @@ public class Gem {
     float landingDuration = 0.25f;
     float landingCounter = 0.0f;
 
+    final static float DROP_ACCELERATION = 16.0f;
+    float dropperVelocity = 0.0f;
     float dropperSpeed = 300.0f;
-    float dropperSpeedBase = 300.0f;
+    float currentSpeed;
     float fastFallRatio = 3.0f;
 
     SquashState squashingStatus = SquashState.Off;
@@ -64,16 +66,22 @@ public class Gem {
         debugPaint.setColor(Color.WHITE);
     }
 
+    public void setDropperSpeed(float speed) {
+        dropperSpeed = speed;
+        currentSpeed = 0.0f;
+        dropperVelocity = 0.0f;
+    }
+
     public void setFastFall(boolean isFastFalling) {
         if (this.isFastFalling != isFastFalling) {
             this.isFastFalling = isFastFalling;
             if (isFastFalling) {
-                dropperSpeed = dropperSpeedBase * fastFallRatio;
+                //dropperSpeed = dropperSpeedBase * fastFallRatio;
                 if (currentState == GemState.Falling) {
                     startSquashing(true);
                 }
             } else {
-                dropperSpeed = dropperSpeedBase;
+                //dropperSpeed = dropperSpeedBase;
                 if (currentState == GemState.Falling) {
                     startSquashing(false);
                 }
@@ -187,7 +195,15 @@ public class Gem {
         if (currentState == GemState.SpinningIn || currentState == GemState.SpinningOut) {
             updateSpinning(deltaTime);
         } else if (currentState == GemState.Falling) {
-            int offset = (int)(deltaTime * dropperSpeed);
+            if (currentSpeed < dropperSpeed) {
+                dropperVelocity += deltaTime * DROP_ACCELERATION;
+                currentSpeed += dropperVelocity;
+                currentSpeed = Math.min(currentSpeed, dropperSpeed);
+            }
+            int offset = (int)(deltaTime * currentSpeed);
+            if (isFastFalling) {
+                offset = (int)(offset * fastFallRatio);
+            }
             gemRect.offset(0, offset);
         } else if (currentState == GemState.Landing) {
             updateLanding(deltaTime);

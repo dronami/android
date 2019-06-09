@@ -83,9 +83,9 @@ public class AndroidGraphics implements Graphics {
             scaledWidth = (int)(originalWidth * ratio);
             scaledHeight = scaledDimension;
         }
-        Log.d("Dronami", "Ratio: " + ratio);
-        Log.d("Dronami", "Original Dimensions: "+originalWidth+", "+originalHeight );
-        Log.d("Dronami", "Scaled Dimensions: "+scaledWidth+", "+scaledHeight );
+//        Log.d("Dronami", "Ratio: " + targetRatio);
+//        Log.d("Dronami", "Original Dimensions: "+originalWidth+", "+originalHeight );
+//        Log.d("Dronami", "Scaled Dimensions: "+scaledWidth+", "+scaledHeight );
         Bitmap scaledBitmap = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight,
                 antiAlias);
 
@@ -100,6 +100,11 @@ public class AndroidGraphics implements Graphics {
     public Pixmap newScaledPixmap(String fileName, PixmapFormat format,
                                   int scaledDimension, boolean scaleToWidth) {
         return newScaledPixmap(fileName, format, scaledDimension, scaleToWidth, true);
+    }
+    public Pixmap newScaledPixmap(Pixmap pixmap, int newWidth, int newHeight, boolean antiAlias) {
+        Bitmap scaledBitmap = Bitmap.createScaledBitmap(((AndroidPixmap)pixmap).bitmap, newWidth,
+                newHeight, antiAlias);
+        return new AndroidPixmap(scaledBitmap, ((AndroidPixmap) pixmap).format);
     }
 
     private Bitmap loadBitmap(String fileName, PixmapFormat format) {
@@ -157,6 +162,10 @@ public class AndroidGraphics implements Graphics {
         paint.setColor(color);
         paint.setStyle(Paint.Style.FILL);
         canvas.drawRect(x, y, x + width - 1, y + width - 1, paint);
+    }
+
+    public void drawRect(Rect rect, Paint paint) {
+        canvas.drawRect(rect, paint);
     }
 
     public void drawRect(Rect rect, int color) {

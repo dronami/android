@@ -23,12 +23,14 @@ public interface Graphics {
                                   int scaledWidth, boolean scaleToWidth, boolean antiAlias);
     public Pixmap newScaledPixmap(String fileName, PixmapFormat format,
                                   int scaledWidth, boolean scaleToWidth);
+    public Pixmap newScaledPixmap(Pixmap pixmap, int newWidth, int newHeight, boolean antiAlias);
 
     public void clear(int color);
 
     public void drawPixel(int x, int y, int color);
     public void drawLine(int x, int y, int x2, int y2, int color);
     public void drawRect(int x, int y, int height, int width, int color);
+    public void drawRect(Rect rect, Paint paint);
     public void drawRect(Rect rect, int color);
     public void drawPixmap(Pixmap pixmap, int x, int y);
     public void drawPixmap(Pixmap pixmap, int x, int y,

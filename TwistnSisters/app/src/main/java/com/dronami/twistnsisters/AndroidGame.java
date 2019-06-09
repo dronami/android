@@ -51,6 +51,9 @@ public class AndroidGame extends Activity implements Game {
         Bitmap frameBuffer = Bitmap.createBitmap(frameBufferWidth, frameBufferHeight,
                 Bitmap.Config.RGB_565);
 
+        fontManager = FontManager.getInstance();
+        fontManager.initializeFont(this, "futur.otf");
+
         float scaleX = (float)frameBufferWidth / getWindowManager().getDefaultDisplay().getWidth();
         float scaleY = (float)frameBufferHeight / getWindowManager().getDefaultDisplay().getHeight();
 
@@ -64,9 +67,6 @@ public class AndroidGame extends Activity implements Game {
 
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "Dronami:GLGame");
-
-        fontManager = FontManager.getInstance();
-        fontManager.initializeFont(this, "futur.otf");
     }
 
     @Override
