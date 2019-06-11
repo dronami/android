@@ -12,7 +12,7 @@ class DialogBox {
     private int screenWidth;
     private int screenHeight;
     private ArrayList<Pixmap> boxBitmaps = new ArrayList<Pixmap>();
-    private ArrayList<Pixmap> buttonBitmaps = new ArrayList<Pixmap>();
+    //private ArrayList<Pixmap> buttonBitmaps = new ArrayList<Pixmap>();
     private Pixmap savedMidBitmap;
     private String headerText;
     private boolean isYesNo = false;
@@ -58,11 +58,9 @@ class DialogBox {
     private int shadowOffset = 0;
     private float shadowOffsetRatio = 0.015f;
 
-    private boolean okButtonDown = false;
-    private boolean noButtonDown = false;
-
-    private Rect okButtonRect;
-    private Rect noButtonRect;
+    private int buttonWidth;
+    private GameButton okButton;
+    private GameButton noButton;
 
     private Typeface dialogFont;
     private Paint headerPaint = new Paint();
@@ -90,7 +88,7 @@ class DialogBox {
     public DialogBox(int sWidth, int sHeight, Game game) {
         g = game.getGraphics();
         boxWidth = (int)(sWidth - (sWidth * marginRatio * 2.0f));
-        int buttonWidth = (int)(boxWidth * buttonRatio);
+        buttonWidth = (int)(boxWidth * buttonRatio);
         int radialSize = (int)(boxWidth * radialRatio);
 
         Pixmap dialogHeader = game.getGraphics().newScaledPixmap("menutop.png",
@@ -103,19 +101,6 @@ class DialogBox {
         boxBitmaps.add(dialogMid);
         boxBitmaps.add(dialogBottom);
         savedMidBitmap = boxBitmaps.get(1);
-
-        Pixmap okUp = game.getGraphics().newScaledPixmap("button_ok_up.png",
-                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
-        Pixmap okDown = game.getGraphics().newScaledPixmap("button_ok_down.png",
-                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
-        Pixmap noUp = game.getGraphics().newScaledPixmap("button_no_up.png",
-                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
-        Pixmap noDown = game.getGraphics().newScaledPixmap("button_no_down.png",
-                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
-        buttonBitmaps.add(okUp);
-        buttonBitmaps.add(okDown);
-        buttonBitmaps.add(noUp);
-        buttonBitmaps.add(noDown);
 
         screenWidth = sWidth;
         screenHeight = sHeight;
@@ -255,17 +240,29 @@ class DialogBox {
     }
 
     private void setupButtons() {
+        Pixmap okUp = g.newScaledPixmap("button_ok_up.png",
+                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
+        Pixmap okDown = g.newScaledPixmap("button_ok_down.png",
+                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
+        Pixmap noUp = g.newScaledPixmap("button_no_up.png",
+                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
+        Pixmap noDown = g.newScaledPixmap("button_no_down.png",
+                Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
+
         int buttonTop = (int)(boxHeight - (boxWidth * 0.238f));
-        int okX = (int)((boxBitmaps.get(0).getWidth() / 3.25f) - (buttonBitmaps.get(0).getWidth() / 2.0f));
+        int okX = (int)((boxBitmaps.get(0).getWidth() / 3.25f) - (okUp.getWidth() / 2.0f));
         if (isYesNo) {
-            int noX = (int)(boxBitmaps.get(0).getWidth() - (boxBitmaps.get(0).getWidth() / 3.25f) - (buttonBitmaps.get(0).getWidth() / 2.0f));
-            okButtonRect = new Rect(okX, buttonTop, okX + buttonBitmaps.get(0).getWidth(),
-                    buttonTop + buttonBitmaps.get(0).getHeight());
-            noButtonRect = new Rect(noX, buttonTop, noX + buttonBitmaps.get(0).getWidth(),
-                    buttonTop + buttonBitmaps.get(0).getHeight());
+            int noX = (int)(boxBitmaps.get(0).getWidth() - (boxBitmaps.get(0).getWidth() / 3.25f) - (noUp.getWidth() / 2.0f));
+            Rect okButtonRect = new Rect(okX, buttonTop, okX + okUp.getWidth(),
+                    buttonTop + okUp.getHeight());
+            okButton = new GameButton(okButtonRect, okUp, okDown);
+            Rect noButtonRect = new Rect(noX, buttonTop, noX + noUp.getWidth(),
+                    buttonTop + noUp.getHeight());
+            noButton = new GameButton(noButtonRect, noUp, noDown);
         } else {
-            okX = (int)((boxBitmaps.get(0).getWidth() / 2.0f) - (buttonBitmaps.get(0).getWidth() / 2.0f));
-            okButtonRect = new Rect(okX, buttonTop, okX + buttonBitmaps.get(0).getWidth(), buttonTop + buttonBitmaps.get(0).getHeight());
+            okX = (int)((boxBitmaps.get(0).getWidth() / 2.0f) - (okUp.getWidth() / 2.0f));
+            Rect okButtonRect = new Rect(okX, buttonTop, okX + okUp.getWidth(), buttonTop + okUp.getHeight());
+            okButton = new GameButton(okButtonRect, okUp, okDown);
         }
     }
 
@@ -330,7 +327,7 @@ class DialogBox {
         lastBoxPosY = (float)((int)boxPosY);
         boxPosX = (float)((int)posX);
         boxPosY = (float)((int)posY);
-        okButtonRect.offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
+        okButton.buttonRect.offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
         for (int r = 0; r < radialRects.size(); r++) {
             radialRects.get(r).offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
         }
@@ -341,7 +338,7 @@ class DialogBox {
             checkboxRects.get(c).offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
         }
         if (isYesNo) {
-            noButtonRect.offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
+            noButton.buttonRect.offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
         }
 
     }
@@ -360,22 +357,34 @@ class DialogBox {
     }
 
     int handleTouchEvent(List<Input.TouchEvent> events) {
-        for (int e = 0; e < events.size(); e++) {
-            Input.TouchEvent event = events.get(e);
-            if (event != null && boxStatus == 2) {
-                if (event.type == MotionEvent.ACTION_DOWN) {
-                    for (int r = 0; r < radialTouchRects.size(); r++) {
-                        if (r != radialSelection && radialTouchRects.get(r).contains(event.x, event.y)) {
-                            setSelection(r);
-                        }
-                    }
-                    for (int c = 0; c < checkboxRects.size(); c++) {
-                        if (checkboxRects.get(c).contains(event.x, event.y)) {
-                            setCheckbox(c, !checkboxSelections.get(c));
-                        }
-                    }
+        if (boxStatus == 2) {
+            int okRetval = okButton.handleTouchEvent(events);
+            if (okRetval == 1) {
+                return 1;
+            }
+            if (isYesNo) {
+                int noRetval = noButton.handleTouchEvent(events);
+                if (noRetval == 1) {
+                    return -1;
                 }
+            }
+            for (int e = 0; e < events.size(); e++) {
+                Input.TouchEvent event = events.get(e);
+                if (event != null) {
+                    if (event.type == MotionEvent.ACTION_DOWN) {
+                        for (int r = 0; r < radialTouchRects.size(); r++) {
+                            if (r != radialSelection && radialTouchRects.get(r).contains(event.x, event.y)) {
+                                setSelection(r);
+                            }
+                        }
+                        for (int c = 0; c < checkboxRects.size(); c++) {
+                            if (checkboxRects.get(c).contains(event.x, event.y)) {
+                                setCheckbox(c, !checkboxSelections.get(c));
+                            }
+                        }
+                    }
 
+                /*
                 if (event.type == MotionEvent.ACTION_DOWN || event.type == MotionEvent.ACTION_MOVE) {
                     if (!okButtonDown && okButtonRect.contains(event.x, event.y)) {
                         okButtonDown = true;
@@ -405,6 +414,8 @@ class DialogBox {
                         return -1;
                     }
                 }
+                */
+                }
             }
         }
 
@@ -427,17 +438,9 @@ class DialogBox {
         g.drawPixmap(boxBitmaps.get(1), (int)boxPosX, (int)(boxPosY + boxBitmaps.get(0).getHeight()));
         g.drawPixmap(boxBitmaps.get(2), (int)boxPosX, (int)(boxPosY + boxBitmaps.get(0).getHeight() + boxBitmaps.get(1).getHeight()));
 
-        if (okButtonDown) {
-            g.drawPixmap(buttonBitmaps.get(1), okButtonRect.left, okButtonRect.top);
-        } else {
-            g.drawPixmap(buttonBitmaps.get(0), okButtonRect.left, okButtonRect.top);
-        }
+        okButton.draw(g);
         if (isYesNo) {
-            if (noButtonDown) {
-                g.drawPixmap(buttonBitmaps.get(3), noButtonRect.left, noButtonRect.top);
-            } else {
-                g.drawPixmap(buttonBitmaps.get(2), noButtonRect.left, noButtonRect.top);
-            }
+            noButton.draw(g);
         }
 
         shadowPaint.setColor(darkShadowColor);

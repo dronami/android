@@ -164,16 +164,4 @@ public class Sidebar {
                     - (barBGRect.bottom - barBGRect.top) * currentRatio);
         }
     }
-
-    private int blendColors(int start, int end, float ratio) {
-        int sR = Color.red(start);
-        int sG = Color.green(start);
-        int sB = Color.blue(start);
-
-        int eR = Color.red(end);
-        int eG = Color.green(end);
-        int eB = Color.blue(end);
-
-        return Color.rgb((int)(sR+((eR-sR)*ratio)), (int)(sG+((eG-sG)*ratio)), (int)(sB+((eB-sB)*ratio)));
-    }
 }

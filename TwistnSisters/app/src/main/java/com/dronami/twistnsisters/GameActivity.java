@@ -5,6 +5,6 @@ package com.dronami.twistnsisters;
 public class GameActivity extends AndroidGame {
     @Override
     public Screen getStartScreen() {
-        return new GameScreen(this);
+        return new SetupScreen(this);
     }
 }

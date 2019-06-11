@@ -4,9 +4,7 @@ import android.graphics.BitmapShader;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Point;
 import android.graphics.Rect;
-import android.graphics.Shader;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -97,7 +95,7 @@ class PointBubble {
         pointBubbleCounter = 0.0f;
         if (!fontInitialized) {
             this.color = color;
-            fontSize = gameBoard.fontManager.getBiggestFontSize(0, (int)(gameBoard.tileSize * (1.0f - margin * 2)), "+99");
+            fontSize = gameBoard.fontManager.getBiggestFontSizeByWidth(0, (int)(gameBoard.tileSize * (1.0f - margin * 2)), "+99");
             textHeight = gameBoard.fontManager.getTextHeight(0, fontSize, "+99");
             fontPaint.setTypeface(gameBoard.fontManager.getTypeface(0));
             fontPaint.setTextSize(fontSize);
@@ -144,7 +142,7 @@ public class GameBoard {
     BoardState savedState;
     FontManager fontManager;
 
-    public int[] gemColors = new int[5];
+    int gemColorIndex;
 
     public static final int NUM_TILES_X = 4;
     public static final int NUM_TILES_Y = 8;
@@ -268,7 +266,7 @@ public class GameBoard {
         Pool.PoolObjectFactory<PointBubble> pbFactory = new Pool.PoolObjectFactory<PointBubble>() {
             @Override
             public PointBubble createObject() {
-                return new PointBubble(gb, gemColors[NUM_GEM_TYPES]);
+                return new PointBubble(gb, Game.ColorManager.twistaColor);
             }
         };
 
@@ -320,11 +318,7 @@ public class GameBoard {
         clearBoard();
         spawnDroppers();
 
-        gemColors[0] = 0xFF06E7FF;
-        gemColors[1] = 0xFFA9F34E;
-        gemColors[2] = 0xFFAE52D4;
-        gemColors[3] = 0xFFFF5185;
-        gemColors[4] = 0xFFFBC02D;
+
 
         for (int c = 0; c < NUM_TILES_X; c++) {
             Rect columnRect = new Rect(playArea.left + c * tileSize, playArea.top + tileSize,
@@ -574,20 +568,16 @@ public class GameBoard {
 
     private void clearGem(Gem gem, int multiplier) {
         int points = 1 * multiplier;
-        int curGemType = gem.gemType;
-        if (curGemType > NUM_GEM_TYPES) {
-            curGemType = NUM_GEM_TYPES;
-        }
         Rect curRect;
-        //if (gem.row >= NUM_TILES_Y) {
-        //    curRect = gemRects[gem.column];
-        //} else {
-            curRect = tileRects[gem.column][gem.row];
-            if (gem.row < NUM_TILES_Y) {
-                boardGems[gem.column][gem.row] = null;
-            }
-        //}
-        initExplosion(curRect, gemColors[curGemType]);
+        curRect = tileRects[gem.column][gem.row];
+        if (gem.row < NUM_TILES_Y) {
+            boardGems[gem.column][gem.row] = null;
+        }
+        if (gem.gemType < NUM_GEM_TYPES) {
+            initExplosion(curRect, Game.ColorManager.gemColorSets[gemColorIndex][gem.gemType]);
+        } else {
+            initExplosion(curRect, Game.ColorManager.twistaColor);
+        }
         if (gem.gemType < NUM_GEM_TYPES) {
             initPointBubble(curRect, points);
             score += points;
@@ -710,11 +700,6 @@ public class GameBoard {
                         clearGem(boardGems[c][r], 1);
                         clearGem(boardGems[c][r+1], 1);
 
-                        //initExplosion(boardGems[c][r].gemRect, gemColors[boardGems[c][r].gemType]);
-                        //initExplosion(boardGems[c][r+1].gemRect, gemColors[boardGems[c][r+1].gemType]);
-                        //boardGems[c][r] = null;
-                        //boardGems[c][r+1] = null;
-
                         if (startCascadeColumn(r+1, c)) {
                             boardState = BoardState.Cascading;
                         }
@@ -759,7 +744,8 @@ public class GameBoard {
 
     private void updateTwista(float deltaTime) {
         if (twistaTop.currentState == Gem.GemState.Hidden) {
-            initExplosion(tileRects[twistaTop.column][twistaBottomRow], gemColors[NUM_GEM_TYPES]);
+            initExplosion(tileRects[twistaTop.column][twistaBottomRow],
+                    Game.ColorManager.twistaColor);
             boardState = BoardState.Active;
             twistaTop = null;
         } else if (twistaTop.currentState == Gem.GemState.SpinningOut) {
@@ -799,8 +785,9 @@ public class GameBoard {
                     for (int r = 0; r < NUM_TILES_Y; r++) {
                         // Landing on bottom row
                         if (curGem.gemRect.bottom >= tileRects[curGem.column][0].bottom) {
-                            if (curGem.gemType == 4) {
-                                initExplosion(tileRects[curGem.column][r], gemColors[curGem.gemType]);
+                            if (curGem.gemType == NUM_GEM_TYPES) {
+                                initExplosion(tileRects[curGem.column][r],
+                                        Game.ColorManager.twistaColor);
                                 fallingGems.remove(curGem);
                                 curGem = null;
                                 break;
@@ -834,13 +821,6 @@ public class GameBoard {
                                     curGem.row = r+1;
                                     clearGem(curGem, 1);
                                     clearGem(boardGems[curGem.column][r], 1);
-                                    if (r + 1 <= NUM_TILES_Y - 1) {
-                                        //initExplosion(tileRects[curGem.column][r + 1], gemColors[curGemType]);
-                                    } else {
-                                        //initExplosion(curGem.gemRect, gemColors[curGemType]);
-                                    }
-
-                                    //initExplosion(tileRects[curGem.column][r], gemColors[curGemType]);
 
                                     if (r+1 < NUM_TILES_Y) {
                                         boardGems[curGem.column][r + 1] = curGem;
@@ -860,7 +840,7 @@ public class GameBoard {
                                     }
                                 } else {
                                     boolean twistaActivated = false;
-                                    if (curGem.gemType == 4) {
+                                    if (curGem.gemType == NUM_GEM_TYPES) {
                                         twistaActivated = checkColumnForTwista(r, curGem.column);
                                         if (twistaActivated) {
                                             boardState = BoardState.TwistaSquashing;
@@ -868,7 +848,7 @@ public class GameBoard {
                                             twistaStartRect.set(curGem.gemRect);
                                             fallingGems.remove(curGem);
                                         } else {
-                                            initExplosion(tileRects[curGem.column][r+1], gemColors[curGem.gemType]);
+                                            initExplosion(tileRects[curGem.column][r+1], Game.ColorManager.twistaColor);
                                         }
                                         fallingGems.remove(curGem);
                                         curGem = null;

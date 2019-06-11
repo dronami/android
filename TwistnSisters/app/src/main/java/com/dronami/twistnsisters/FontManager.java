@@ -41,7 +41,7 @@ public class FontManager {
         return typefaces.get(typefaceIndex);
     }
 
-    public float getBiggestFontSize(int typefaceIndex, int width, String text) {
+    public float getBiggestFontSizeByWidth(int typefaceIndex, int width, String text) {
         float fontSize = 100.0f;
         fontPaint.setTypeface(typefaces.get(typefaceIndex));
         fontPaint.setTextSize(fontSize);
@@ -50,6 +50,23 @@ public class FontManager {
             fontSize -= 0.5f;
             fontPaint.setTextSize(fontSize);
             textWidth = fontPaint.measureText(text);
+        }
+
+        return fontSize;
+    }
+
+    public float getBiggestFontSizeByHeight(int typefaceIndex, int height, String text) {
+        float fontSize = 100.0f;
+        fontPaint.setTypeface(typefaces.get(typefaceIndex));
+        fontPaint.setTextSize(fontSize);
+        Rect bounds = new Rect();
+        fontPaint.getTextBounds(text, 0, text.length(), bounds);
+        int textHeight = bounds.height();
+        while (textHeight > height && fontSize > 0.0f) {
+            fontSize -= 0.5f;
+            fontPaint.setTextSize(fontSize);
+            fontPaint.getTextBounds(text, 0, text.length(), bounds);
+            textHeight = bounds.height();
         }
 
         return fontSize;

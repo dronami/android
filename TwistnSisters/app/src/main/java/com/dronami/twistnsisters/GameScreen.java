@@ -3,13 +3,10 @@ package com.dronami.twistnsisters;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
 
-// This is a simple test screen that just displays an Android logo in front of a green background.
-// If the screen is tapped, the colors are inverted to demonstrate that input is working.
 public class GameScreen extends Screen {
     enum ScreenState {
         Active, PromptQuit, Intro
@@ -68,6 +65,8 @@ public class GameScreen extends Screen {
     private Pixmap soundIconOn;
     private Pixmap soundIconOff;
     private Rect soundIconRect;
+
+    private int uiColorIndex = 0;
 
     // Sidebar shit
     private ArrayList<Sidebar> sidebars = new ArrayList<>();
@@ -129,7 +128,7 @@ public class GameScreen extends Screen {
         gearIcon = game.getGraphics().newScaledPixmap("gear-icon.png",
                 Graphics.PixmapFormat.ARGB4444, gearIconRect.width(), false);
 
-        headerTextSize = game.getFontManager().getBiggestFontSize(0, timeTextAreaRect.width(), "99:99");
+        headerTextSize = game.getFontManager().getBiggestFontSizeByWidth(0, timeTextAreaRect.width(), "99:99");
         headerTextPaint = new Paint();
         headerTextPaint.setTypeface(FontManager.getTypeface(0));
         headerTextPaint.setColor(headerTextColor);
@@ -163,6 +162,10 @@ public class GameScreen extends Screen {
                 Graphics.PixmapFormat.ARGB4444, soundIconRect.width(), true);
 
         dialogBox = new DialogBox(screenWidth, screenHeight, game);
+
+        bgColor = Game.ColorManager.uiColorSets[uiColorIndex][0];
+        headerColor = Game.ColorManager.uiColorSets[uiColorIndex][1];
+        borderColor = Game.ColorManager.uiColorSets[uiColorIndex][2];
     }
 
     @Override
@@ -202,22 +205,16 @@ public class GameScreen extends Screen {
     public void present(float deltaTime) {
         Graphics g = game.getGraphics();
 
-        g.clear(bgColor);
+        g.clear(Game.ColorManager.uiColorSets[uiColorIndex][0]);
         g.drawRect(borderRect, borderColor);
         g.drawRect(headerArea, headerColor);
 
-       // g.drawRect(timeArea, Color.BLUE);
         g.drawPixmap(timeIcon, timeIconRect.left, timeIconRect.top);
-        //g.drawRect(timeTextRect, Color.MAGENTA);
-        //g.drawRect(timeTextAreaRect, Color.DKGRAY);
         int timeTextXOffset = (int)(timeTextAreaRect.width() - game.getFontManager().getTextWidth(0, headerTextSize, timeText))/2;
         g.drawText(timeText, timeTextAreaRect.left + timeTextXOffset + shadowOffset, timeTextAreaRect.bottom - textYOffset + shadowOffset, headerShadowPaint);
         g.drawText(timeText, timeTextAreaRect.left + timeTextXOffset, timeTextAreaRect.bottom - textYOffset, headerTextPaint);
 
-        //g.drawRect(scoreArea, Color.GREEN);
         g.drawPixmap(scoreIcon, scoreIconRect.left, scoreIconRect.top);
-        //g.drawRect(scoreTextRect, Color.YELLOW);
-        //g.drawRect(scoreTextAreaRect, Color.DKGRAY);
         int scoreTextXOffset = (int)(scoreTextAreaRect.width() - game.getFontManager().getTextWidth(0, headerTextSize, scoreText))/2;
         g.drawText(scoreText, scoreTextAreaRect.left + scoreTextXOffset + shadowOffset, scoreTextAreaRect.bottom - textYOffset + shadowOffset, headerShadowPaint);
         g.drawText(scoreText, scoreTextAreaRect.left + scoreTextXOffset, scoreTextAreaRect.bottom - textYOffset, headerTextPaint);
