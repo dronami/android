@@ -1,6 +1,7 @@
 package com.dronami.twistnsisters;
 
 import android.graphics.*;
+import android.util.Log;
 import android.view.MotionEvent;
 
 import java.util.ArrayList;
@@ -34,6 +35,9 @@ class DialogBox {
     private float radialMargin = 0f;
     private ArrayList<Rect> radialRects = new ArrayList<Rect>();
     private ArrayList<Rect> radialTouchRects = new ArrayList<Rect>();
+    private int radialTouchOffset = 0;
+    private ArrayList<Integer> radialXOffsets = new ArrayList<>();
+    private ArrayList<Integer> radialYOffsets = new ArrayList<>();
     private Paint radialPaintCurrent = new Paint();
     private Paint radialPaintEmpty = new Paint();
 
@@ -41,6 +45,8 @@ class DialogBox {
     private int numCheckboxTexts = 0;
     private Pixmap checkboxBitmap;
     private ArrayList<Rect> checkboxRects = new ArrayList<Rect>();
+    private ArrayList<Integer> checkboxXOffsets = new ArrayList<>();
+    private ArrayList<Integer> checkboxYOffsets = new ArrayList<>();
 
     private float lastBoxPosX = 0f;
     private float lastBoxPosY = 0f;
@@ -61,6 +67,8 @@ class DialogBox {
     private int buttonWidth;
     private GameButton okButton;
     private GameButton noButton;
+    private ArrayList<Integer> buttonXOffsets = new ArrayList<>();
+    private ArrayList<Integer> buttonYOffsets = new ArrayList<>();
 
     private Typeface dialogFont;
     private Paint headerPaint = new Paint();
@@ -188,14 +196,23 @@ class DialogBox {
         while (r < bodyTextYs.size() - numCheckboxTexts) {
             radialRects.add(new Rect((int)(radialX + radialBitmap.getWidth()*0.18f), (int)(bodyTextYs.get(r) + radialYOffset + radialBitmap.getHeight()*0.18f),
                     (int)(radialX + radialBitmap.getWidth() * 0.82f), (int)(bodyTextYs.get(r) + radialYOffset + radialBitmap.getHeight() * 0.82f)));
+            radialXOffsets.add((int)(radialRects.get(radialRects.size()-1).left - boxPosX));
+            radialYOffsets.add((int)(radialRects.get(radialRects.size()-1).top - boxPosY));
             radialTouchRects.add(new Rect((int)radialX, (int)(bodyTextYs.get(r) + radialYOffset),
                     (int)(radialX + radialBitmap.getWidth()), (int)(bodyTextYs.get(r) + radialYOffset + radialBitmap.getHeight())));
             r++;
         }
+        if (radialRects.size() > 0) {
+            radialTouchOffset = radialTouchRects.get(0).left - radialRects.get(0).left;
+        }
+
         while (r < bodyTextYs.size()) {
             checkboxRects.add(new Rect((int)(radialX + radialBitmap.getWidth()*0.18f), (int)(bodyTextYs.get(r) + radialYOffset + radialBitmap.getHeight()*0.18f),
                     (int)(radialX + radialBitmap.getWidth() * 0.82f), (int)(bodyTextYs.get(r) + radialYOffset + radialBitmap.getHeight() * 0.82f)));
+            checkboxXOffsets.add((int)(checkboxRects.get(checkboxRects.size()-1).left - boxPosX));
+            checkboxYOffsets.add((int)(checkboxRects.get(checkboxRects.size()-1).top - boxPosY));
             checkboxSelections.add(false);
+
             r++;
         }
         radialPaintCurrent.setColor(Color.MAGENTA);
@@ -240,6 +257,8 @@ class DialogBox {
     }
 
     private void setupButtons() {
+        buttonXOffsets.clear();
+        buttonYOffsets.clear();
         Pixmap okUp = g.newScaledPixmap("button_ok_up.png",
                 Graphics.PixmapFormat.ARGB4444, buttonWidth, true);
         Pixmap okDown = g.newScaledPixmap("button_ok_down.png",
@@ -259,21 +278,31 @@ class DialogBox {
             Rect noButtonRect = new Rect(noX, buttonTop, noX + noUp.getWidth(),
                     buttonTop + noUp.getHeight());
             noButton = new GameButton(noButtonRect, noUp, noDown);
+
+            buttonXOffsets.add((int)(okButtonRect.left - boxPosX));
+            buttonYOffsets.add((int)(okButtonRect.top - boxPosY));
+
+            buttonXOffsets.add((int)(noButtonRect.left - boxPosX));
+            buttonYOffsets.add((int)(noButtonRect.top - boxPosY));
         } else {
             okX = (int)((boxBitmaps.get(0).getWidth() / 2.0f) - (okUp.getWidth() / 2.0f));
             Rect okButtonRect = new Rect(okX, buttonTop, okX + okUp.getWidth(), buttonTop + okUp.getHeight());
             okButton = new GameButton(okButtonRect, okUp, okDown);
+
+            buttonXOffsets.add((int)(okButtonRect.left - boxPosX));
+            buttonYOffsets.add((int)(okButtonRect.top - boxPosY));
         }
+
+
     }
 
     void startTransition(boolean transitionIn, boolean horizontal) {
-        dialogActive = true;
-        if (transitionIn) {
-            lastBoxPosX = 0f;
-            lastBoxPosY = 0f;
-            boxPosX = 0f;
-            boxPosY = 0f;
-        }
+//        if (transitionIn) {
+//            lastBoxPosX = 0f;
+//            lastBoxPosY = 0f;
+//            boxPosX = 0f;
+//            boxPosY = 0f;
+//        }
 
         horizontalTransition = horizontal;
         if (transitionIn) {
@@ -300,17 +329,24 @@ class DialogBox {
             }
         }
 
+        lastBoxPosX = transitionStartX;
+        lastBoxPosY = transitionStartY;
+        boxPosX = lastBoxPosX;
+        boxPosY = lastBoxPosY;
+        updateButtonPositions();
+
         transitionCounter = 0.0f;
+        dialogActive = true;
     }
 
-    void updateDialog(float deltaTime) {
+    public boolean updateDialog(float deltaTime) {
         if (boxStatus == 1 || boxStatus == 3) {
             if (transitionCounter >= TRANSITION_DURATION) {
                 if (boxStatus == 1) {
                     boxStatus = 2;
                 } else {
                     boxStatus = 0;
-                    dialogActive = false;
+                    return true;
                 }
             } else {
                 transitionCounter += deltaTime;
@@ -320,6 +356,8 @@ class DialogBox {
                         transitionStartY + (transitionEndY - transitionStartY) * transitionRatio);
             }
         }
+
+        return false;
     }
 
     private void updatePosition(float posX, float posY) {
@@ -327,20 +365,29 @@ class DialogBox {
         lastBoxPosY = (float)((int)boxPosY);
         boxPosX = (float)((int)posX);
         boxPosY = (float)((int)posY);
-        okButton.buttonRect.offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
-        for (int r = 0; r < radialRects.size(); r++) {
-            radialRects.get(r).offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
-        }
-        for (int t = 0; t < radialTouchRects.size(); t++) {
-            radialTouchRects.get(t).offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
-        }
-        for (int c = 0; c < checkboxRects.size(); c++) {
-            checkboxRects.get(c).offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
-        }
+
+        updateButtonPositions();
+    }
+
+    private void updateButtonPositions() {
+        okButton.buttonRect.set((int)(boxPosX + buttonXOffsets.get(0)), (int)(boxPosY + buttonYOffsets.get(0)),
+                (int)(boxPosX + buttonXOffsets.get(0) + okButton.buttonRect.width()), (int)(boxPosY + buttonYOffsets.get(0) + okButton.buttonRect.height()));
         if (isYesNo) {
-            noButton.buttonRect.offset((int)(boxPosX - lastBoxPosX), (int)(boxPosY - lastBoxPosY));
+            noButton.buttonRect.set((int)(boxPosX + buttonXOffsets.get(1)), (int)(boxPosY + buttonYOffsets.get(1)),
+                    (int)(boxPosX + buttonXOffsets.get(1) + noButton.buttonRect.width()), (int)(boxPosY + buttonYOffsets.get(1) + noButton.buttonRect.height()));
         }
 
+        for (int c = 0; c < checkboxRects.size(); c++) {
+            checkboxRects.get(c).set((int)(boxPosX + checkboxXOffsets.get(c)), (int)(boxPosY + checkboxYOffsets.get(c)),
+                    (int)(boxPosX + checkboxXOffsets.get(c) + checkboxRects.get(c).width()), (int)(boxPosY + checkboxYOffsets.get(c) + checkboxRects.get(c).height()));
+        }
+
+        for (int r = 0; r < radialRects.size(); r++) {
+            radialRects.get(r).set((int)(boxPosX + radialXOffsets.get(r)), (int)(boxPosY + radialYOffsets.get(r)),
+                    (int)(boxPosX + radialXOffsets.get(r) + radialRects.get(r).width()), (int)(boxPosY + radialYOffsets.get(r) + radialRects.get(r).height()));
+            radialTouchRects.get(r).set(radialRects.get(r).left + radialTouchOffset, radialRects.get(r).top + radialTouchOffset,
+                    radialRects.get(r).right - radialTouchOffset, radialRects.get(r).bottom - radialTouchOffset);
+        }
     }
 
     void setSelection(int sel) {
@@ -356,65 +403,63 @@ class DialogBox {
         checkboxSelections.set(index, value);
     }
 
-    int handleTouchEvent(List<Input.TouchEvent> events) {
+//    int handleTouchEvent(List<Input.TouchEvent> events) {
+//        if (boxStatus == 2) {
+//            int okRetval = okButton.handleTouchEvent(events);
+//            if (okRetval == 1) {
+//                return 1;
+//            }
+//            if (isYesNo) {
+//                int noRetval = noButton.handleTouchEvent(events);
+//                if (noRetval == 1) {
+//                    return -1;
+//                }
+//            }
+//            for (int e = 0; e < events.size(); e++) {
+//                Input.TouchEvent event = events.get(e);
+//                if (event != null) {
+//                    if (event.type == MotionEvent.ACTION_DOWN) {
+//                        for (int r = 0; r < radialTouchRects.size(); r++) {
+//                            if (r != radialSelection && radialTouchRects.get(r).contains(event.x, event.y)) {
+//                                setSelection(r);
+//                            }
+//                        }
+//                        for (int c = 0; c < checkboxRects.size(); c++) {
+//                            if (checkboxRects.get(c).contains(event.x, event.y)) {
+//                                setCheckbox(c, !checkboxSelections.get(c));
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//        return 0;
+//    }
+
+    synchronized public int handleTouchEvent(MotionEvent event) {
         if (boxStatus == 2) {
-            int okRetval = okButton.handleTouchEvent(events);
+            int okRetval = okButton.handleTouchEvent(event);
             if (okRetval == 1) {
                 return 1;
             }
             if (isYesNo) {
-                int noRetval = noButton.handleTouchEvent(events);
+                int noRetval = noButton.handleTouchEvent(event);
                 if (noRetval == 1) {
                     return -1;
                 }
             }
-            for (int e = 0; e < events.size(); e++) {
-                Input.TouchEvent event = events.get(e);
-                if (event != null) {
-                    if (event.type == MotionEvent.ACTION_DOWN) {
-                        for (int r = 0; r < radialTouchRects.size(); r++) {
-                            if (r != radialSelection && radialTouchRects.get(r).contains(event.x, event.y)) {
-                                setSelection(r);
-                            }
-                        }
-                        for (int c = 0; c < checkboxRects.size(); c++) {
-                            if (checkboxRects.get(c).contains(event.x, event.y)) {
-                                setCheckbox(c, !checkboxSelections.get(c));
-                            }
-                        }
-                    }
 
-                /*
-                if (event.type == MotionEvent.ACTION_DOWN || event.type == MotionEvent.ACTION_MOVE) {
-                    if (!okButtonDown && okButtonRect.contains(event.x, event.y)) {
-                        okButtonDown = true;
-                        //SoundManager.playSound(SoundManager.Sounds.SWITCH2.value);
-                    } else if (okButtonDown && !okButtonRect.contains(event.x, event.y)) {
-                        okButtonDown = false;
-                        //SoundManager.playSound(SoundManager.Sounds.SWITCH1.value);
-                    }
-
-                    if (isYesNo) {
-                        if (!noButtonDown && noButtonRect.contains(event.x, event.y)) {
-                            noButtonDown = true;
-                            //SoundManager.playSound(SoundManager.Sounds.SWITCH2.value)
-                        } else if (noButtonDown && !noButtonRect.contains(event.x, event.y)) {
-                            noButtonDown = false;
-                            //SoundManager.playSound(SoundManager.Sounds.SWITCH1.value)
-                        }
-                    }
-                } else if (event.type == MotionEvent.ACTION_UP) {
-                    if (okButtonRect.contains(event.x, event.y)) {
-                        okButtonDown = false;
-                        //SoundManager.playSound(SoundManager.Sounds.SWITCH1.value)
-                        return 1;
-                    } else if (isYesNo && noButtonRect.contains(event.x, event.y)) {
-                        noButtonDown = false;
-                        //SoundManager.playSound(SoundManager.Sounds.SWITCH1.value)
-                        return -1;
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                for (int r = 0; r < radialTouchRects.size(); r++) {
+                    if (r != radialSelection && radialTouchRects.get(r).contains((int)event.getX(), (int)event.getY())) {
+                        setSelection(r);
                     }
                 }
-                */
+                for (int c = 0; c < checkboxRects.size(); c++) {
+                    if (checkboxRects.get(c).contains((int)event.getX(), (int)event.getY())) {
+                        setCheckbox(c, !checkboxSelections.get(c));
+                    }
                 }
             }
         }

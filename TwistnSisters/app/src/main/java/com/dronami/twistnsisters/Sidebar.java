@@ -118,7 +118,7 @@ public class Sidebar {
             juiceShader.setLocalMatrix(juiceMatrix);
 
             if (sidebarType == SidebarType.Time.getValue()) {
-                Log.d("Assy", currentRatio +" vs. " +targetRatio);
+
             }
 
             if (currentRatio < targetRatio) {

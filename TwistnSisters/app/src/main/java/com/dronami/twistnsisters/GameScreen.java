@@ -3,16 +3,18 @@ package com.dronami.twistnsisters;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.util.Log;
+import android.view.MotionEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class GameScreen extends Screen {
     enum ScreenState {
-        Active, PromptQuit, Intro
+        Intro, Active, PromptQuit, TransitionOut
     }
 
-    ScreenState screenState = ScreenState.Active;
+    ScreenState screenState = ScreenState.Intro;
     Game game;
     GameBoard gameBoard;
     Rect playArea;
@@ -30,8 +32,7 @@ public class GameScreen extends Screen {
     private Rect timeArea;
     private Rect scoreArea;
 
-    private Pixmap mascotPixmap;
-    private Rect mascotRect;
+    private Mascot mascot;
 
     private Pixmap timeIcon;
     private Rect timeIconRect;
@@ -72,6 +73,8 @@ public class GameScreen extends Screen {
     private ArrayList<Sidebar> sidebars = new ArrayList<>();
     private DialogBox dialogBox;
 
+    Transition transition;
+
     public GameScreen(Game game) {
         super(game);
         this.game = game;
@@ -93,12 +96,28 @@ public class GameScreen extends Screen {
         separatorRect = new Rect(playAreaLeft, (playArea.top + tileSize - borderSize/2),
             playArea.right, (playArea.top + tileSize - borderSize/2) + borderSize);
 
-        int mascotSize = (int)(playAreaTop * 1.15f);
-        int mascotMargin = (int)(screenWidth * 0.03f);
-        mascotRect = new Rect(0, 0,
-                mascotMargin + mascotSize, mascotMargin + mascotSize);
-        mascotPixmap = game.getGraphics().newScaledPixmap("mascot.png",
-                Graphics.PixmapFormat.ARGB4444, mascotRect.width(), false);
+        int mascotSize = (int)(playAreaTop * 1.8f);
+        //int mascotMargin = (int)(screenWidth * 0.03f);
+        Rect mascotRect = new Rect(-(int)(mascotSize * 0.1f), -(int)(mascotSize * 0.2f),
+                (int)(mascotSize * 0.9f), (int)(mascotSize * 0.8f));
+        ArrayList<Pixmap> mascotPixmaps = new ArrayList<Pixmap>();
+        Pixmap normalPixmap = game.getGraphics().newScaledPixmap("twistina-head-normal.png",
+                Graphics.PixmapFormat.ARGB4444, mascotRect.width(), true);
+        Pixmap happyPixmap = game.getGraphics().newScaledPixmap("twistina-head-happy.png",
+                Graphics.PixmapFormat.ARGB4444, mascotRect.width(), true);
+        Pixmap sadPixmap = game.getGraphics().newScaledPixmap("twistina-head-sad.png",
+                Graphics.PixmapFormat.ARGB4444, mascotRect.width(), true);
+        Pixmap ecstaticPixmap = game.getGraphics().newScaledPixmap("twistina-head-ecstatic.png",
+                Graphics.PixmapFormat.ARGB4444, mascotRect.width(), true);
+        mascotPixmaps.add(normalPixmap);
+        mascotPixmaps.add(happyPixmap);
+        mascotPixmaps.add(sadPixmap);
+        mascotPixmaps.add(ecstaticPixmap);
+
+        Pixmap handPixmap = game.getGraphics().newScaledPixmap("twistina-vhand.png",
+                Graphics.PixmapFormat.ARGB4444, mascotRect.width()/2, true);
+
+        mascot = new Mascot(mascotPixmaps, handPixmap, mascotRect);
 
         int iconMargin = (int)(headerArea.height() * 0.2f);
         int headerWidthLeft = screenWidth - headerArea.height() - mascotRect.right;
@@ -140,7 +159,14 @@ public class GameScreen extends Screen {
 
         textYOffset = (int)((timeTextAreaRect.height() - game.getFontManager().getTextHeight(0, (int)headerTextSize, "99:99")) / 2);
 
-        gameBoard = new GameBoard(playArea, game.getGraphics(), game.getFontManager());
+        int gameMode = game.getSharedPreferences().getInt(Game.SharedPrefData.GAME_MODE_KEY,
+                Game.SharedPrefData.GAME_MODE_DEFAULT);
+        int gameLevel = game.getSharedPreferences().getInt(Game.SharedPrefData.GAME_LEVEL_KEY,
+                Game.SharedPrefData.GAME_LEVEL_DEFAULT);
+        int gameSpeed = game.getSharedPreferences().getInt(Game.SharedPrefData.GAME_SPEED_KEY,
+                Game.SharedPrefData.GAME_SPEED_DEFAULT);
+
+        gameBoard = new GameBoard(playArea, game, mascot, gameMode, gameLevel, gameSpeed);
         shadowOffset = (int)(gameBoard.tileSize * 0.05f);
 
         // Init sidebars
@@ -166,39 +192,36 @@ public class GameScreen extends Screen {
         bgColor = Game.ColorManager.uiColorSets[uiColorIndex][0];
         headerColor = Game.ColorManager.uiColorSets[uiColorIndex][1];
         borderColor = Game.ColorManager.uiColorSets[uiColorIndex][2];
+
+        dialogBox.initDialog("Quit Game?", null, true);
+
+        int transitionType = game.getSharedPreferences().getInt(Game.SharedPrefData.TRANSITION_TYPE_KEY,
+                Game.SharedPrefData.TRANSITION_TYPE_DEFAULT);
+        transition = new Transition(screenWidth, screenHeight, transitionType);
+        transition.initTransition(transitionType);
+        transition.startTransition(false);
     }
 
     @Override
     public void update(float deltaTime) {
-        List<Input.TouchEvent> touchEvents = game.getInput().getTouchEvents();
-        if (touchEvents.size() > 0) {
-            if (screenState == ScreenState.Active) {
-                handleTouchEvents(touchEvents);
-                gameBoard.handleTouchEvents(touchEvents);
-            } else if (screenState == ScreenState.PromptQuit){
-                int buttonPressed = dialogBox.handleTouchEvent(touchEvents);
-                if (buttonPressed == -1) {
-                    dialogBox.startTransition(false, true);
-                }
-            }
-        }
-
-        if (screenState == ScreenState.PromptQuit) {
-            if (!dialogBox.dialogActive) {
+        if (screenState == ScreenState.Intro) {
+            if (transition.updateTransition(deltaTime)) {
                 screenState = ScreenState.Active;
-                gameBoard.unPause();
             }
+        } else if (screenState == ScreenState.PromptQuit) {
+            if (dialogBox.updateDialog(deltaTime)) {
+                gameBoard.unPause();
+                screenState = ScreenState.Active;
+                return;
+            }
+        } else {
+            mascot.update(deltaTime);
+            gameBoard.update(deltaTime);
+            scoreText = gameBoard.getScoreString();
+            timeText = gameBoard.getTimeString();
+
+            updateSidebars(deltaTime);
         }
-
-        gameBoard.update(deltaTime);
-        scoreText = gameBoard.getScoreString();
-        timeText = gameBoard.getTimeString();
-
-        if (dialogBox.dialogActive) {
-            dialogBox.updateDialog(deltaTime);
-        }
-
-        updateSidebars(deltaTime);
     }
 
     @Override
@@ -234,10 +257,43 @@ public class GameScreen extends Screen {
             g.drawPixmap(soundIconOff, soundIconRect.left, soundIconRect.top);
         }
 
-        g.drawPixmap(mascotPixmap, mascotRect.left, mascotRect.top);
+        mascot.draw(g);
 
-        if (dialogBox.dialogActive) {
+        if (screenState == ScreenState.PromptQuit || screenState == ScreenState.TransitionOut) {
             dialogBox.draw(g);
+        }
+        if (screenState == ScreenState.Intro || screenState == ScreenState.TransitionOut) {
+            transition.draw(g);
+        }
+    }
+
+    public void handleTouchEvent(MotionEvent event) {
+        if (screenState == ScreenState.Active) {
+            if (!gameBoard.handleTouchEvent(event)) {
+                if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                    if (soundIconRect.contains((int) event.getX(), (int) event.getY())) {
+                        soundOn = !soundOn;
+                        return;
+                    } else if (gearIconRect.contains((int) event.getX(), (int) event.getY())) {
+                        gameBoard.pause();
+                        screenState = ScreenState.PromptQuit;
+                        dialogBox.startTransition(true, true);
+                        return;
+                    }
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+
+                } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+
+                }
+            }
+        } else if (screenState == ScreenState.PromptQuit){
+            int buttonPressed = dialogBox.handleTouchEvent(event);
+            if (buttonPressed == -1) {
+                dialogBox.startTransition(false, true);
+            } else if (buttonPressed == 1) {
+                screenState = ScreenState.TransitionOut;
+                transition.startTransition(true);
+            }
         }
     }
 
@@ -295,29 +351,10 @@ public class GameScreen extends Screen {
         }
     }
 
-    private void handleTouchEvents(List<Input.TouchEvent> events) {
-        for (int e = 0; e < events.size(); e++) {
-            Input.TouchEvent curEvent = events.get(e);
-
-            if (curEvent.type == Input.TouchEvent.TOUCH_DOWN) {
-                if (soundIconRect.contains(curEvent.x, curEvent.y)) {
-                    soundOn = !soundOn;
-                }
-            } else if (curEvent.type == Input.TouchEvent.TOUCH_UP) {
-                if (gearIconRect.contains(curEvent.x, curEvent.y)) {
-                    gameBoard.pause();
-                    screenState = ScreenState.PromptQuit;
-                    initializeDialogBox("Quit game?", null, true, true, true);
-                }
-            } else if (curEvent.type == Input.TouchEvent.TOUCH_DRAGGED) {
-
-            }
-        }
-    }
-
-    private void initializeDialogBox(String hText, ArrayList<String> bTexts, boolean yesNo,
+    private synchronized void initializeDialogBox(String hText, ArrayList<String> bTexts, boolean yesNo,
                                      boolean transitionIn, boolean horizontal) {
-        dialogBox.initDialog(hText, bTexts, yesNo);
+        gameBoard.pause();
+        screenState = ScreenState.PromptQuit;
         dialogBox.startTransition(transitionIn, horizontal);
     }
 }

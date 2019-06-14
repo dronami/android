@@ -12,6 +12,7 @@ import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
@@ -172,6 +173,15 @@ public class AndroidGraphics implements Graphics {
         paint.setColor(color);
         paint.setStyle(Paint.Style.FILL);
         canvas.drawRect(rect, paint);
+    }
+
+    public void drawPath(Path p, Paint paint) {
+        canvas.drawPath(p, paint);
+    }
+
+    public void drawPath(Path p, int color) {
+        paint.setColor(color);
+        canvas.drawPath(p, paint);
     }
 
     public void drawPixmap(Pixmap pixmap, int x, int y,

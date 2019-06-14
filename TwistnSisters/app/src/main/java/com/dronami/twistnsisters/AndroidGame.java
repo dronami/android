@@ -2,10 +2,15 @@ package com.dronami.twistnsisters;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.preference.PreferenceManager;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -18,7 +23,10 @@ public class AndroidGame extends Activity implements Game {
     static final int TARGET_SCREEN_SHORT = 320;
     static final int TARGET_SCREEN_LONG = 480;
 
+    private static final String SHARED_PREF_NAME = "TwistnPrefs";
+
     AndroidFastRenderView renderView;
+    View.OnTouchListener touchListener;
     Graphics graphics;
     Audio audio;
     Input input;
@@ -26,6 +34,7 @@ public class AndroidGame extends Activity implements Game {
     Screen screen;
     PowerManager.WakeLock wakeLock;
     FontManager fontManager;
+    SharedPreferences sharedPreferences;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -58,15 +67,26 @@ public class AndroidGame extends Activity implements Game {
         float scaleY = (float)frameBufferHeight / getWindowManager().getDefaultDisplay().getHeight();
 
         renderView = new AndroidFastRenderView(this, frameBuffer);
+        touchListener = new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                onTouched(v, event);
+
+                return true;
+            }
+        };
+        renderView.setOnTouchListener(touchListener);
         graphics = new AndroidGraphics(getAssets(), frameBuffer);
         fileIO = new AndroidFileIO(this);
         audio = new AndroidAudio(this);
-        input = new AndroidInput(this, renderView, scaleX, scaleY);
+        //input = new AndroidInput(this, renderView, scaleX, scaleY);
         screen = getStartScreen();
         setContentView(renderView);
 
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "Dronami:GLGame");
+
+        sharedPreferences = getApplicationContext().getSharedPreferences(SHARED_PREF_NAME, 0);
     }
 
     @Override
@@ -112,6 +132,25 @@ public class AndroidGame extends Activity implements Game {
         return fontManager;
     }
 
+    public SharedPreferences getSharedPreferences() {
+        if (sharedPreferences == null) {
+            sharedPreferences = getApplicationContext().getSharedPreferences(SHARED_PREF_NAME, 0);
+        }
+        return sharedPreferences;
+    }
+
+    public void commitToSharedPrefs(String key, int value) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt(key, value);
+        editor.commit();
+    }
+
+    public void commitToSharedPrefs(String key, String value) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString(key, value);
+        editor.commit();
+    }
+
     public void setScreen(Screen screen) {
         if (screen == null) {
             throw new IllegalArgumentException("Screen must not be null");
@@ -130,5 +169,12 @@ public class AndroidGame extends Activity implements Game {
 
     public Screen getStartScreen() {
         return null;
+    }
+
+
+    public boolean onTouched(View v, MotionEvent event) {
+        screen.handleTouchEvent(event);
+
+        return true;
     }
 }

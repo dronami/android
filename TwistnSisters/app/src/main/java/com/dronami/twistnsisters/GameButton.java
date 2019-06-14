@@ -36,32 +36,28 @@ public class GameButton {
         this.radialGroup = radialGroup;
     }
 
-    public int handleTouchEvent(List<Input.TouchEvent> events) {
-        for (int e = 0; e < events.size(); e++) {
-            Input.TouchEvent event = events.get(e);
-            if (event != null) {
-                if (event.type == MotionEvent.ACTION_DOWN) {
-                    if (buttonRect.contains(event.x, event.y)) {
-                        buttonDown = true;
-                        if (buttonType == ButtonType.Radial) {
-                            for (int r = 0; r < radialGroup.size(); r++) {
-                                radialGroup.get(r).buttonDown = false;
-                            }
-                        }
+    public int handleTouchEvent(MotionEvent event) {
 
-                        return radialIndex;
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if (buttonRect.contains((int)event.getX(), (int)event.getY())) {
+                buttonDown = true;
+                if (buttonType == ButtonType.Radial) {
+                    for (int r = 0; r < radialGroup.size(); r++) {
+                        radialGroup.get(r).buttonDown = false;
                     }
                 }
 
-                if (buttonType == ButtonType.Normal) {
-                    if (event.type == MotionEvent.ACTION_DOWN || event.type == MotionEvent.ACTION_MOVE) {
-                        buttonDown = buttonRect.contains(event.x, event.y);
-                    } else if (event.type == MotionEvent.ACTION_UP) {
-                        buttonDown = false;
-                        if (buttonRect.contains(event.x, event.y)) {
-                            return 1;
-                        }
-                    }
+                return radialIndex;
+            }
+        }
+
+        if (buttonType == ButtonType.Normal) {
+            if (event.getAction() == MotionEvent.ACTION_DOWN || event.getAction() == MotionEvent.ACTION_MOVE) {
+                buttonDown = buttonRect.contains((int)event.getX(), (int)event.getY());
+            } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                buttonDown = false;
+                if (buttonRect.contains((int)event.getX(), (int)event.getY())) {
+                    return 1;
                 }
             }
         }

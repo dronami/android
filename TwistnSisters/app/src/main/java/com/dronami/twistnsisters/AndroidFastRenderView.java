@@ -3,8 +3,11 @@ package com.dronami.twistnsisters;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Rect;
+import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 
 // Based on the framework described in
 // Beginning Android Games (Second Edition)

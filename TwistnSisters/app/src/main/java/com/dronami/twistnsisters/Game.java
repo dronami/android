@@ -4,6 +4,7 @@ package com.dronami.twistnsisters;
 // Beginning Android Games (Second Edition)
 // by Mario Zechner and Robert Green
 
+import android.content.SharedPreferences;
 import android.graphics.Color;
 
 import java.util.ArrayList;
@@ -14,10 +15,14 @@ public interface Game {
     public Graphics getGraphics();
     public Audio getAudio();
     public FontManager getFontManager();
+    public SharedPreferences getSharedPreferences();
 
     public void setScreen(Screen screen);
     public Screen getCurrentScreen();
     public Screen getStartScreen();
+
+    public void commitToSharedPrefs(String key, int value);
+    public void commitToSharedPrefs(String key, String value);
 
     static class ColorManager {
         public static final int textColor = 0xFFFBC02D;
@@ -43,5 +48,19 @@ public interface Game {
 
             return Color.rgb((int)(sR+((eR-sR)*ratio)), (int)(sG+((eG-sG)*ratio)), (int)(sB+((eB-sB)*ratio)));
         }
+    }
+
+    static class SharedPrefData {
+        public static final String GAME_MODE_KEY = "gameMode";
+        public static final String GAME_LEVEL_KEY = "gameLevel";
+        public static final String GAME_SPEED_KEY = "gameSpeed";
+        public static final String GAME_GEMTYPE_KEY = "gameGemType";
+        public static final String TRANSITION_TYPE_KEY = "transitionType";
+
+        public static final int GAME_MODE_DEFAULT = 0;
+        public static final int GAME_LEVEL_DEFAULT = 5;
+        public static final int GAME_SPEED_DEFAULT = 1;
+        public static final int GAME_GEMTYPE_DEFAULT = 0;
+        public static final int TRANSITION_TYPE_DEFAULT = 0;
     }
 }

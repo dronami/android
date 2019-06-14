@@ -6,6 +6,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
+import android.view.MotionEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -140,6 +141,7 @@ public class GameBoard {
     }
     BoardState boardState;
     BoardState savedState;
+    Game game;
     FontManager fontManager;
 
     int gemColorIndex;
@@ -157,10 +159,10 @@ public class GameBoard {
     private long timeElapsed = 0;
     private long savedTime = 0;
 
-    //Rect[] gemRects;
     ArrayList<Gem> dropperGems = new ArrayList<Gem>();
     ArrayList<Gem> fallingGems = new ArrayList<Gem>();
 
+    private int gemCount;
     Gem[][] boardGems = new Gem[NUM_TILES_X][NUM_TILES_Y];
     Pixmap[] gemPixmaps = new Pixmap[NUM_GEM_TYPES];
     Pixmap gemSheet;
@@ -191,7 +193,6 @@ public class GameBoard {
     int selectedColumn = -1;
 
     // Game logic shit
-
     boolean isDropping = false;
     final static float DROPPING_DURATION = 1.2f;
     float droppingCounter = 0.0f;
@@ -232,6 +233,10 @@ public class GameBoard {
     int twistaBottomRow = 0;
     final static float TWISTOUT_DURATION = 0.8f;
 
+    private float GEMS_PER_LEVEL = 2.4f;
+    private int gameMode = 0;
+    private int gameLevel = 0;
+
     private int speedLevel = 6;
     private int speedCounter = 0;
     private int speedDuration = 20;
@@ -245,13 +250,24 @@ public class GameBoard {
             500.0f,
             550.0f,
             600.0f,
-            650.0f
+            650.0f,
+            700.0f,
+            750.0f,
+            800.0f
     };
 
-    public GameBoard(Rect playArea, Graphics g, FontManager fontManager) {
+    Mascot mascot;
+
+    public GameBoard(Rect playArea, Game game, Mascot mascot,
+                     int gameMode, int gameLevel, int speedLevel) {
         tileSize = playArea.width() / NUM_TILES_X;
         this.playArea = playArea;
-        this.fontManager = fontManager;
+        this.fontManager = game.getFontManager();
+
+        this.gameMode = gameMode;
+        this.gameLevel = gameLevel;
+        this.speedLevel = speedLevel * 4;
+        this.mascot = mascot;
 
         final GameBoard gb = this;
         Pool.PoolObjectFactory<Explosion> factory = new Pool.PoolObjectFactory<Explosion>() {
@@ -285,22 +301,22 @@ public class GameBoard {
         bufferArea = new Rect(playArea.left, playArea.top, playArea.right, playArea.top + tileSize);
 
         for (int p = 0; p < NUM_GEM_TYPES; p++) {
-            gemPixmaps[p] = g.newScaledPixmap("gem-"+p+".png",
+            gemPixmaps[p] = game.getGraphics().newScaledPixmap("gem-"+p+".png",
                     Graphics.PixmapFormat.ARGB4444, tileSize, false);
         }
 
         for (int t = 0; t < NUM_TWISTA_TYPES; t++) {
-            twistaPixmaps[t] = g.newScaledPixmap("twista-"+t+".png",
+            twistaPixmaps[t] = game.getGraphics().newScaledPixmap("twista-"+t+".png",
                     Graphics.PixmapFormat.ARGB4444, tileSize, false);
         }
 
-        gemSheet = g.newScaledPixmap("gems-a.png",
+        gemSheet = game.getGraphics().newScaledPixmap("gems-a.png",
                 Graphics.PixmapFormat.ARGB4444, tileSize * 2, false);
-        twistaSheet = g.newScaledPixmap("twistas.png",
+        twistaSheet = game.getGraphics().newScaledPixmap("twistas.png",
                 Graphics.PixmapFormat.ARGB4444, tileSize * 2, false);
-        bgPixmap = g.newScaledPixmap("bg-grass.png",
+        bgPixmap = game.getGraphics().newScaledPixmap("bg-grass.png",
                 Graphics.PixmapFormat.ARGB4444, playArea.width(), true);
-        Pixmap tileBG = g.newScaledPixmap("tilebg.png",
+        Pixmap tileBG = game.getGraphics().newScaledPixmap("tilebg.png",
                 Graphics.PixmapFormat.RGB565, tileSize, false);
         tilePaint = new Paint();
         tileShader = new BitmapShader(((AndroidPixmap)tileBG).bitmap,
@@ -310,7 +326,7 @@ public class GameBoard {
         tileMatrix.postTranslate(playArea.left, playArea.top);
         tileShader.setLocalMatrix(tileMatrix);
 
-        explosionSheet = g.newPixmap("explosion-sheet.png",
+        explosionSheet = game.getGraphics().newPixmap("explosion-sheet.png",
                 Graphics.PixmapFormat.ARGB4444);
 
         gemSrcRect = new Rect(0, 0, tileSize, tileSize);
@@ -326,9 +342,33 @@ public class GameBoard {
             columnRects[c] = columnRect;
         }
 
+        fillBoard();
+//        int[][] boardPattern = {
+//                {0, 0, 0, -1},
+//                {2, 2, 2, -1},
+//                {-1, -1, -1, -1},
+//                {-1, -1, -1, -1},
+//                {-1, -1, -1, -1},
+//                {-1, -1, -1, -1},
+//                {-1, -1, -1, -1},
+//                {-1, -1, -1, -1}
+//        };
+//
+//        initBoardPattern(boardPattern);
+//        printBoard();
+
+        boardState = BoardState.Active;
+
+        score = 0;
+        gameStartTime = System.currentTimeMillis();
+    }
+
+    private void fillBoard() {
+        int numGems = (int)(gameLevel * GEMS_PER_LEVEL);
+        Log.d("Assy", "NUMGEMS: "+numGems);
         int[][] boardPattern = {
-                {0, 0, 0, -1},
-                {2, 2, 2, -1},
+                {-1, -1, -1, -1},
+                {-1, -1, -1, -1},
                 {-1, -1, -1, -1},
                 {-1, -1, -1, -1},
                 {-1, -1, -1, -1},
@@ -337,13 +377,39 @@ public class GameBoard {
                 {-1, -1, -1, -1}
         };
 
+        Random random = new Random();
+        ArrayList<Integer> typeCandidates = new ArrayList<>();
+        for (int y = 0; y < NUM_TILES_Y && numGems > 0; y++) {
+            for (int x = 0; x < NUM_TILES_X && numGems > 0; x++) {
+                typeCandidates.clear();
+                for (int g = 0; g < NUM_GEM_TYPES; g++) {
+                    typeCandidates.add(g);
+                }
+
+                if (x > 0) {
+                    typeCandidates.remove(new Integer(boardPattern[y][x-1]));
+                }
+                if (y > 0) {
+                    typeCandidates.remove(new Integer(boardPattern[y-1][x]));
+                }
+
+                int randIndex = random.nextInt(typeCandidates.size());
+                int randType = typeCandidates.get(randIndex);
+                boardPattern[y][x] = randType;
+                Log.d("Assy", x+", "+y+": "+" = "+randType);
+
+                numGems--;
+            }
+        }
+
+        for (int y = 0; y < NUM_TILES_Y; y++) {
+            String rowString = "";
+            for (int x = 0; x < NUM_TILES_X; x++) {
+                rowString += boardPattern[y][x]+", ";
+            }
+            Log.d("Assy", rowString);
+        }
         initBoardPattern(boardPattern);
-        printBoard();
-
-        boardState = BoardState.Active;
-
-        score = 0;
-        gameStartTime = System.currentTimeMillis();
     }
 
     public int getScore() {
@@ -433,6 +499,27 @@ public class GameBoard {
         cascadeGems.clear();
     }
 
+    private void incGemCount() {
+        gemCount++;
+        checkMascotState();
+    }
+
+    private void decGemCount() {
+        gemCount--;
+        checkMascotState();
+    }
+
+    private void checkMascotState() {
+        Log.d("Assy", "GemCount: "+gemCount);
+        if (gemCount < (NUM_TILES_X * NUM_TILES_Y)/4) {
+            mascot.setFaceState(Mascot.FaceState.Happy);
+        } else if (gemCount > (NUM_TILES_X * NUM_TILES_Y)*3/4) {
+            mascot.setFaceState(Mascot.FaceState.Sad);
+        } else {
+            mascot.setFaceState(Mascot.FaceState.Normal);
+        }
+    }
+
     private void initBoardPattern(int[][] boardPattern) {
         for (int y = 0; y < NUM_TILES_Y; y++) {
             for (int x = 0; x < NUM_TILES_X; x++) {
@@ -443,6 +530,7 @@ public class GameBoard {
                     newGem.column = x;
                     newGem.currentState = Gem.GemState.Landed;
                     boardGems[x][y] = newGem;
+                    incGemCount();
                 }
             }
         }
@@ -495,6 +583,10 @@ public class GameBoard {
                 twistGemsRight.get(r).draw(g);
             }
         }
+        Paint countPaint = new Paint();
+        countPaint.setColor(Color.WHITE);
+        countPaint.setTextSize(30);
+        g.drawText(""+gemCount, 200, 200, countPaint);
     }
 
     private void drawBG(Graphics g) {
@@ -561,6 +653,7 @@ public class GameBoard {
         if (row < NUM_TILES_Y) {
             boardGems[gem.column][gem.row] = gem;
             gem.gemRect.set(tileRects[gem.column][gem.row]);
+            incGemCount();
         } else {
             Log.e("DronamiError", "Game over");
         }
@@ -571,7 +664,10 @@ public class GameBoard {
         Rect curRect;
         curRect = tileRects[gem.column][gem.row];
         if (gem.row < NUM_TILES_Y) {
-            boardGems[gem.column][gem.row] = null;
+            if (boardGems[gem.column][gem.row] != null) {
+                boardGems[gem.column][gem.row] = null;
+                decGemCount();
+            }
         }
         if (gem.gemType < NUM_GEM_TYPES) {
             initExplosion(curRect, Game.ColorManager.gemColorSets[gemColorIndex][gem.gemType]);
@@ -582,6 +678,8 @@ public class GameBoard {
             initPointBubble(curRect, points);
             score += points;
         }
+
+        mascot.setFaceState(Mascot.FaceState.Ecstatic);
     }
 
     private boolean isRowMatch(int row) {
@@ -717,12 +815,10 @@ public class GameBoard {
             if (boardGems[column][r] != null) {
                 if (boardGems[column][r].gemType < 4) {
                     twistaGems.add(boardGems[column][r]);
-                    //Log.d("Assy", "Adding twista at row: "+r);
                 } else if (boardGems[column][r].gemType == 5) {
                     twistaGems.add(boardGems[column][r]);
                     twistaBottomRow = r;
                     twistaFound = true;
-                    //Log.d("Assy", "Twista found: "+r);
                     break;
                 }
             }
@@ -764,6 +860,7 @@ public class GameBoard {
                     twistaTop.startSpinning(false, TWISTOUT_DURATION);
                     twistaTop.gemType = 6;
                     boardGems[twistaTop.column][twistaBottomRow] = null;
+                    decGemCount();
                 } else {
                     if (curTwista - 1 < twistaGems.size()) {
                         Gem curGem = twistaGems.get(curTwista - 1);
@@ -1117,10 +1214,10 @@ public class GameBoard {
                 }
 
                 if (System.nanoTime() - lastTouchTime < doubleTapWindow) {
-                    Log.d("TapD", (System.nanoTime() - lastTouchTime) + " vs. " + doubleTapWindow);
+
                     setFastFalling(true);
                 } else {
-                    Log.d("TapD", "Not within: "+(System.nanoTime() - lastTouchTime) + " vs. " + doubleTapWindow);
+
                 }
 
                 lastTouchTime = System.nanoTime();
@@ -1138,6 +1235,47 @@ public class GameBoard {
                 }
             }
         }
+    }
+
+    synchronized public boolean handleTouchEvent(MotionEvent event) {
+        if (boardState == BoardState.Cascading || boardState == BoardState.TwistaSquashing) {
+            return false;
+        }
+
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            boolean retVal = false;
+            for (int c = 0; c < columnRects.length; c++) {
+                if (columnRects[c].contains((int)event.getX(), (int)event.getY())) {
+                    selectedColumn = c;
+                    retVal = true;
+                }
+            }
+
+            if (System.nanoTime() - lastTouchTime < doubleTapWindow) {
+                setFastFalling(true);
+                retVal = true;
+            } else {
+
+            }
+
+            lastTouchTime = System.nanoTime();
+
+            return retVal;
+        } else if (event.getAction() == MotionEvent.ACTION_UP) {
+            setFastFalling(false);
+        } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+            if (selectedColumn != -1) {
+                for (int c = 0; c < columnRects.length; c++) {
+                    if (c == selectedColumn - 1 && columnRects[c].contains((int)event.getX(), (int)event.getY())) {
+                        startTwist(selectedColumn, selectedColumn-1);
+                    } else if (c == selectedColumn + 1 && columnRects[c].contains((int)event.getX(), (int)event.getY())) {
+                        startTwist(selectedColumn, selectedColumn+1);
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private void initExplosion(Rect tileRect, int gemType) {

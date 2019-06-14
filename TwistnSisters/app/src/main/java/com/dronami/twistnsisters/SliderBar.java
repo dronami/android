@@ -24,8 +24,10 @@ public class SliderBar {
     static int midColor = 0xFFFBC02D;
     static int endColor = 0xFF8BC34A;
     static int juiceColor = 0xFFFBC02D;
+    static int bgColor = Game.ColorManager.darkShadowColor;
     int currentColor = startColor;
     private Paint juicePaint;
+    private Paint tickPaint;
     private BitmapShader juiceShader;
     private PorterDuffColorFilter juiceColorFilter;
     private float lastJuiceOffset = 0.0f;
@@ -34,7 +36,6 @@ public class SliderBar {
     private Matrix juiceMatrix = new Matrix();
     private boolean barTouched = false;
 
-    float touchedX;
     float currentRatio = 0.5f;
 
     ArrayList<Integer> tickXs = new ArrayList<>();
@@ -69,6 +70,9 @@ public class SliderBar {
         juiceMatrix.postTranslate(juiceRect.left, juiceRect.top);
         juiceShader.setLocalMatrix(juiceMatrix);
 
+        tickPaint = new Paint();
+        tickPaint.setColor(Color.BLACK);
+
         setRatio(currentRatio);
     }
 
@@ -97,34 +101,37 @@ public class SliderBar {
 
     public void draw(Graphics g) {
         g.drawRect(borderRect, borderColor);
-        g.drawRect(bgRect, Color.BLACK);
+        g.drawRect(bgRect, bgColor);
+
+        for (int t = 1; t < tickXs.size(); t++) {
+            g.drawLine(bgRect.left + tickXs.get(t), bgRect.top,
+                    bgRect.left + tickXs.get(t), bgRect.bottom, Color.BLACK);
+        }
+
         g.drawRect(juiceRect, juicePaint);
     }
 
-    public int handleTouchEvent(List<Input.TouchEvent> events) {
-        for (int e = 0; e < events.size(); e++) {
-            Input.TouchEvent event = events.get(e);
-            if (event != null) {
-                if (event.type == MotionEvent.ACTION_DOWN) {
-                    if (bgRect.contains(event.x, event.y)) {
-                        barTouched = true;
-                        setRatio((event.x - bgRect.left) / (bgRect.right-bgRect.left));
-                    }
-                } else if (event.type == MotionEvent.ACTION_UP) {
-                    barTouched = false;
-                } else if (barTouched && event.type == MotionEvent.ACTION_MOVE) {
-                    float touchedX = event.x;
-                    if (touchedX < bgRect.left) {
-                        touchedX = bgRect.left;
-                    } else if (touchedX > bgRect.right) {
-                        touchedX = bgRect.right;
-                    }
-
-                    setRatio((touchedX - bgRect.left) / (bgRect.right-bgRect.left));
-                }
+    public float handleTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if (bgRect.contains((int)event.getX(), (int)event.getY())) {
+                barTouched = true;
+                setRatio((event.getX() - bgRect.left) / (bgRect.right-bgRect.left));
+                return currentRatio;
             }
+        } else if (event.getAction() == MotionEvent.ACTION_UP) {
+            barTouched = false;
+        } else if (barTouched && event.getAction() == MotionEvent.ACTION_MOVE) {
+            float touchedX = event.getX();
+            if (touchedX < bgRect.left) {
+                touchedX = bgRect.left;
+            } else if (touchedX > bgRect.right) {
+                touchedX = bgRect.right;
+            }
+
+            setRatio((touchedX - bgRect.left) / (bgRect.right-bgRect.left));
+            return currentRatio;
         }
 
-        return 0;
+        return -1.0f;
     }
 }

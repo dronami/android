@@ -4,6 +4,8 @@ package com.dronami.twistnsisters;
 // Beginning Android Games (Second Edition)
 // by Mario Zechner and Robert Green
 
+import android.view.MotionEvent;
+
 public abstract class Screen {
     protected final Game game;
 
@@ -13,6 +15,8 @@ public abstract class Screen {
 
     public abstract void update(float deltaTime);
     public abstract void present(float deltaTime);
+
+    public abstract void handleTouchEvent(MotionEvent event);
 
     public abstract void pause();
     public abstract void resume();
